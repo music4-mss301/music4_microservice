@@ -14,7 +14,7 @@ public class Artist {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer artist_id;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String img;
@@ -33,6 +33,9 @@ public class Artist {
 
     @Column(name = "track_total", nullable = false)
     private Integer trackTotal;
+
+    @Column(name = "gender")
+    private Boolean gender;
 
     @Column(name = "album_total", nullable = false)
     private Integer albumTotal;

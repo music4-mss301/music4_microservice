@@ -15,7 +15,7 @@ public class Album {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer album_id;
 
     @Column(nullable = false, length = 100)
     private String name;
