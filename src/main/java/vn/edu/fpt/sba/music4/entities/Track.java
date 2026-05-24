@@ -23,8 +23,8 @@ public class Track {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String img;
 
-    @Column(length = 10)
-    private String duration;
+    @Column(nullable = false)
+    private Integer duration;
 
     @Column(name = "file_path", columnDefinition = "NVARCHAR(MAX)")
     private String filePath;
@@ -32,11 +32,11 @@ public class Track {
     @Column(name = "preview_path", columnDefinition = "NVARCHAR(MAX)")
     private String previewPath;
 
-    @Column(name = "upload_date", nullable = false)
+    @Column(name = "upload_date", nullable = false, updatable = false)
     private LocalDate uploadDate;
 
     @Column(name = "view_count", nullable = false)
-    private Integer viewCount;
+    private Integer viewCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "album_id")
@@ -47,4 +47,12 @@ public class Track {
 
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<TrackCategory> trackCategories;
+
+    @PrePersist
+    protected void onCreate() {
+        this.uploadDate = LocalDate.now();
+        if (this.viewCount == null) {
+            this.viewCount = 0; // Đảm bảo chắc chắn không bị null trước khi vào DB
+        }
+    }
 }
