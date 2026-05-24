@@ -24,7 +24,6 @@ public class RecommendationServiceImpl implements IRecommendationService {
 
         List<Track> topTracks = trackRepository.findTopTrendingTracks(PageRequest.of(0, 10));
 
-        // Sử dụng Constructor của Record để khởi tạo dữ liệu
         return topTracks.stream().map(track -> new TrackSuggestResponse(
                 track.getId(),
                 track.getName(),
