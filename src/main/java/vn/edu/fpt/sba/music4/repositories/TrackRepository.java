@@ -28,7 +28,7 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             "OR (REPLACE(LOWER(a.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%') " +
             "ORDER BY t.name ASC",
             countQuery = "SELECT COUNT(DISTINCT t.id) FROM TRACKS t " +
-                    "LEFT JOIN Track_Artist ta ON t.id = ta.track_id " +
+                    "LEFT JOIN Track_Artists ta ON t.id = ta.track_id " +
                     "LEFT JOIN ARTISTS a ON ta.artist_id = a.id " +
                     "WHERE (REPLACE(LOWER(t.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%') " +
                     "OR (REPLACE(LOWER(a.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%')",

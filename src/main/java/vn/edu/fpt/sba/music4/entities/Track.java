@@ -19,7 +19,7 @@ public class Track {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(100)",length = 100)
     private String name;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")

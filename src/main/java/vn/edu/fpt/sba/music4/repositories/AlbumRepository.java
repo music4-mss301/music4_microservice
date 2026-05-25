@@ -1,6 +1,10 @@
 package vn.edu.fpt.sba.music4.repositories;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.entities.Artist;
@@ -9,7 +13,8 @@ import java.util.List;
 
 @Repository
 public interface AlbumRepository extends JpaRepository<Album, Integer> {
-    List<Album> findByArtistId(Integer artistId);
+    @Query("SELECT a FROM Album a WHERE a.artist.id = :artistId")
+    List<Album> findByArtistId(@Param("artistId") Integer artistId);
     @Query(value = "SELECT al.* FROM ALBUMS al " +
             "LEFT JOIN ARTISTS ar ON al.artist_id = ar.id " +
             "WHERE (REPLACE(LOWER(al.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%') " +
@@ -21,6 +26,5 @@ public interface AlbumRepository extends JpaRepository<Album, Integer> {
                     "OR (REPLACE(LOWER(ar.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%')",
             nativeQuery = true)
     Page<Album> searchByName(@Param("keyword") String keyword, Pageable pageable);
-    @Query("SELECT a FROM Album a WHERE a.artist.id = :artistId")
-    List<Album> findByArtistId(@Param("artistId") Integer artistId);
+
 }

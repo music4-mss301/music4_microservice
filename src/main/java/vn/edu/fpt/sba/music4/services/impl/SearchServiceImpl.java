@@ -1,9 +1,11 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-import vn.edu.fpt.sba.music4.dtos.response.SearchResultResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.*;
+import vn.edu.fpt.sba.music4.entities.*;
 import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.ISearchService;
 
@@ -41,22 +43,73 @@ public class SearchServiceImpl implements ISearchService {
 
         // 1. TÌM KIẾM TẤT CẢ (Không giới hạn Top 5 nữa, lấy theo đúng size truyền vào)
         if (type == null || type.equalsIgnoreCase("all")) {
-            return new SearchResultResponseDTO(
-                    trackRepository.searchByName(cleanKey, pageable),
-                    albumRepository.searchByName(cleanKey, pageable),
-                    artistRepository.searchByName(cleanKey, pageable),
-                    playlistRepository.searchByName(cleanKey, pageable),
-                    categoryRepository.searchByName(cleanKey, pageable)
-            );
+            Page<Track> trackPage = trackRepository.searchByName(cleanKey, pageable);
+            Page<Album> albumPage = albumRepository.searchByName(cleanKey, pageable);
+            Page<Artist> artistPage = artistRepository.searchByName(cleanKey, pageable);
+            Page<Playlist> playlistPage = playlistRepository.searchByName(cleanKey, pageable);
+            Page<Category> categoryPage = categoryRepository.searchByName(cleanKey, pageable);
+
+            Page<TrackResponseDTO> trackDTOPage = trackPage.map(track -> new TrackResponseDTO(
+                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
+            ));
+
+            Page<AlbumResponseDTO> albumDTOPage = albumPage.map(album -> new AlbumResponseDTO(
+                    album.getId(), album.getName(), album.getImg(), album.getUploadDate(), album.getTrackTotal(),
+                    album.getArtist() != null ? album.getArtist().getId() : null
+            ));
+
+            Page<ArtistResponseDTO> artistDTOPage = artistPage.map(artist -> new ArtistResponseDTO(
+                    artist.getId(), artist.getName(), artist.getImg(), artist.getUserName(),artist.getTrackTotal(),artist.getAlbumTotal()
+            ));
+
+            Page<PlaylistResponseDTO> playlistDTOPage = playlistPage.map(playlist -> new PlaylistResponseDTO(
+                    playlist.getId(), playlist.getName(),
+                    playlist.getUser() != null ? playlist.getUser().getId() : null,
+                    playlist.getName()
+            ));
+
+            Page<CategoryResponseDTO> categoryDTOPage = categoryPage.map(category -> new CategoryResponseDTO(
+                    category.getId(), category.getName()
+            ));
+            return new SearchResultResponseDTO(trackDTOPage, albumDTOPage, artistDTOPage, playlistDTOPage, categoryDTOPage);
         }
 
         // 2. TÌM KIẾM CHI TIẾT THEO TYPE
         return switch (type.toLowerCase()) {
-            case "track" -> new SearchResultResponseDTO(trackRepository.searchByName(cleanKey, pageable), null, null, null, null);
-            case "artist" -> new SearchResultResponseDTO(null, null, artistRepository.searchByName(cleanKey, pageable), null, null);
-            case "album" -> new SearchResultResponseDTO(null, albumRepository.searchByName(cleanKey, pageable), null, null, null);
-            case "playlist" -> new SearchResultResponseDTO(null, null, null, playlistRepository.searchByName(cleanKey, pageable), null);
-            case "category" -> new SearchResultResponseDTO(null, null, null, null, categoryRepository.searchByName(cleanKey, pageable));
+            case "track" -> {Page<TrackResponseDTO> trackDTOPage = trackRepository.searchByName(cleanKey,pageable).map(track -> new TrackResponseDTO(
+                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
+            ));
+            yield new SearchResultResponseDTO(trackDTOPage,null,null,null,null);
+            }
+
+            case "artist" -> {
+                Page<ArtistResponseDTO> artistDTOPage = artistRepository.searchByName(cleanKey, pageable).map(artist -> new ArtistResponseDTO(
+                        artist.getId(), artist.getName(), artist.getImg(), artist.getUserName(),artist.getTrackTotal(),artist.getAlbumTotal()
+                ));
+                yield new SearchResultResponseDTO(null, null, artistDTOPage, null, null);
+            }
+
+            case "album" -> {
+                Page<AlbumResponseDTO> albumDTOPage = albumRepository.searchByName(cleanKey, pageable).map(album -> new AlbumResponseDTO(
+                        album.getId(), album.getName(), album.getImg(), album.getUploadDate(), album.getTrackTotal(),
+                        album.getArtist() != null ? album.getArtist().getId() : null
+                ));
+                 yield new SearchResultResponseDTO(null, albumDTOPage, null, null, null);
+            }
+            case "playlist" -> {
+                Page<PlaylistResponseDTO> playlistDTOPage = playlistRepository.searchByName(cleanKey, pageable).map(playlist -> new PlaylistResponseDTO(
+                        playlist.getId(), playlist.getName(),
+                        playlist.getUser() != null ? playlist.getUser().getId() : null,
+                        playlist.getName()
+                ));
+                 yield new SearchResultResponseDTO(null, null, null, playlistDTOPage, null);
+            }
+            case "category" -> {
+                Page<CategoryResponseDTO> categoryDTOPage = categoryRepository.searchByName(cleanKey, pageable).map(category -> new CategoryResponseDTO(
+                        category.getId(), category.getName()
+                ));
+                 yield new SearchResultResponseDTO(null, null, null, null, categoryDTOPage);
+            }
             default -> new SearchResultResponseDTO(null, null, null, null, null);
         };
     }

@@ -21,7 +21,7 @@ public class Artist {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String img;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(100)",length = 100)
     private String name;
 
     @Column(nullable = false, length = 100, unique = true)
