@@ -1,4 +1,4 @@
-package vn.edu.fpt.sba.music4.dto.response;
+package vn.edu.fpt.sba.music4.dtos.response;
 
 public record AlbumResponseDTO(
         Integer id,
