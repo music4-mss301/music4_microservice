@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tracks")
 @Tag(name = "Bài hát (Track API)", description = "Các API phục vụ luồng Upload, cập nhật thông tin và quản lý bài hát")
-public class TrackController {
+public class  TrackController {
     private final ITrackService trackService;
 
     public TrackController(ITrackService trackService) {
@@ -71,6 +71,6 @@ public class TrackController {
     public ResponseEntity<String> deleteTrack(
             @Parameter(description = "ID bài hát cần xóa", example = "1") @PathVariable Integer id) {
         trackService.deleteTrack(id);
-        return ResponseEntity.ok("Xóa bài hát hoàn toàn thành công!");
+        return ResponseEntity.ok("Xóa bài hát thành công!");
     }
 }
