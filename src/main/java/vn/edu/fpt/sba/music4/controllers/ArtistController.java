@@ -7,8 +7,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import vn.edu.fpt.sba.music4.dtos.response.ArtistDetailResponseDTO;
-import vn.edu.fpt.sba.music4.dtos.response.PageResponseDTO;
 import vn.edu.fpt.sba.music4.services.IArtistService;
 
 @RestController
