@@ -20,7 +20,7 @@ public class RecommendationController {
     public ResponseEntity<List<TrackSuggestResponse>> getRecommendations(
             @RequestParam(required = false) Integer userId) {
 
-        List<TrackSuggestResponse> suggestions = recommendationService.getRecommendationsForUser(userId);
+        List<TrackSuggestResponse> suggestions = recommendationService.getRecommendations(userId);
         return ResponseEntity.ok(suggestions);
     }
 }
