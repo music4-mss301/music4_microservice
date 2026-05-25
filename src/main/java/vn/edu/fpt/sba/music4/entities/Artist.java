@@ -14,7 +14,7 @@ public class Artist {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer artist_id;
+    private Integer id;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String img;
