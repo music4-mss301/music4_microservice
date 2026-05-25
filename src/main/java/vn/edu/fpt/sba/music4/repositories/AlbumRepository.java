@@ -11,6 +11,6 @@ import java.util.List;
 
 @Repository
 public interface AlbumRepository extends JpaRepository<Album, Integer> {
-    @Query("SELECT a FROM Album a WHERE a.artist.artist_id = :artistId")
+    @Query("SELECT a FROM Album a WHERE a.artist.id = :artistId")
     List<Album> findByArtistId(@Param("artistId") Integer artistId);
 }
