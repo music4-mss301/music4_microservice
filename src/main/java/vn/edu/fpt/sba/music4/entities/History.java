@@ -26,4 +26,7 @@ public class History {
 
     @Column(name = "listened_at", nullable = false)
     private LocalDateTime listenedAt;
+
+    @Column(name = "playback_position", nullable = false)
+    private Integer playbackPosition = 0;
 }

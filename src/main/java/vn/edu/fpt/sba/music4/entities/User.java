@@ -14,7 +14,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer user_id;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String img;
@@ -30,6 +30,9 @@ public class User {
 
     @Column(name = "user_name", nullable = false, length = 50, unique = true)
     private String userName;
+
+    @Column(name = "gender")
+    private Boolean gender;
 
     @Column(nullable = false, length = 20)
     private String role;
