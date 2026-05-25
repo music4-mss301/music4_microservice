@@ -71,6 +71,6 @@ public class  TrackController {
     public ResponseEntity<String> deleteTrack(
             @Parameter(description = "ID bài hát cần xóa", example = "1") @PathVariable Integer id) {
         trackService.deleteTrack(id);
-        return ResponseEntity.ok("Xóa bài hát hoàn toàn thành công!");
+        return ResponseEntity.ok("Xóa bài hát thành công!");
     }
 }
