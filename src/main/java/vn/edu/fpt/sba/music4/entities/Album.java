@@ -27,7 +27,7 @@ public class Album {
     private LocalDate uploadDate;
 
     @Column(name = "track_total", nullable = false)
-    private Integer trackTotal;
+    private Integer trackTotal = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id", nullable = false)
@@ -35,4 +35,9 @@ public class Album {
 
     @OneToMany(mappedBy = "album", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Track> tracks;
+
+    @PrePersist
+    protected void onCreate() {
+        this.uploadDate = LocalDate.now();
+    }
 }

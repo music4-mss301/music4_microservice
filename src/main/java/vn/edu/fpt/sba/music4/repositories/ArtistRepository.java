@@ -5,5 +5,5 @@ import org.springframework.stereotype.Repository;
 import vn.edu.fpt.sba.music4.entities.Artist;
 
 @Repository
-public interface ArtistRepository extends JpaRepository<Artist,String> {
+public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 }
