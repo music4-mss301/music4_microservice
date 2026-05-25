@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tracks")
 @Tag(name = "Bài hát (Track API)", description = "Các API phục vụ luồng Upload, cập nhật thông tin và quản lý bài hát")
-public class  TrackController {
+public class TrackController {
     private final ITrackService trackService;
 
     public TrackController(ITrackService trackService) {
@@ -34,6 +34,18 @@ public class  TrackController {
             @ModelAttribute TrackUploadDTO dto) {
         trackService.uploadTrack(audioFile, coverImage, dto);
         return ResponseEntity.ok("Upload bài hát và lưu thông tin thành công!");
+    }
+
+    @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload hàng loạt bài hát", description = "Nhận vào nhiều file âm thanh cùng một ảnh bìa và thông tin DTO để upload hàng loạt")
+    @ApiResponse(responseCode = "200", description = "Upload hàng loạt bài hát thành công")
+    @ApiResponse(responseCode = "400", description = "Dữ liệu đầu vào hoặc file không hợp lệ")
+    public ResponseEntity<String> uploadMultipleTracks(
+            @RequestPart("audioFiles") List<MultipartFile> audioFiles, // Nhận list file
+            @RequestPart("coverImage") MultipartFile coverImage,
+            @ModelAttribute TrackUploadDTO dto) {
+        trackService.uploadMultipleTracks(audioFiles, coverImage, dto);
+        return ResponseEntity.ok("Upload hàng loạt " + audioFiles.size() + " bài hát thành công!");
     }
 
     @GetMapping("/{id}")
