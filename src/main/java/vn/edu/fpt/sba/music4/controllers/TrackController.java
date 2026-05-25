@@ -17,7 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tracks")
 @Tag(name = "Bài hát (Track API)", description = "Các API phục vụ luồng Upload, cập nhật thông tin và quản lý bài hát")
-public class TrackController {
+public class  TrackController {
     private final ITrackService trackService;
 
     public TrackController(ITrackService trackService) {
