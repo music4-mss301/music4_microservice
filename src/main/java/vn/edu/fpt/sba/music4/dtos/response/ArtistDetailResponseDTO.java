@@ -1,6 +1,4 @@
-package vn.edu.fpt.sba.music4.dto.response;
-
-import vn.edu.fpt.sba.music4.entities.Playlist;
+package vn.edu.fpt.sba.music4.dtos.response;
 
 import java.util.List;
 
