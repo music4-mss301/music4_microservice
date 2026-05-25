@@ -4,7 +4,7 @@ public record TrackSuggestResponse(
         Integer trackId,
         String trackName,
         String img,
-        String duration,
+        Integer duration,
         String previewPath,
         Integer viewCount,
         Double matchScore
