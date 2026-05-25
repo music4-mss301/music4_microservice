@@ -1,4 +1,4 @@
-//package vn.edu.fpt.sba.music4.configuration;
+//package vn.edu.fpt.sba.music4.configurations;
 //
 //import com.amazonaws.auth.AWSStaticCredentialsProvider;
 //import com.amazonaws.auth.BasicAWSCredentials;
