@@ -11,10 +11,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import vn.edu.fpt.sba.music4.services.JwtService;
-import vn.edu.fpt.sba.music4.services.impl.ArtistDetailsServiceImpl;
+import vn.edu.fpt.sba.music4.util.JwtUtil;
+import vn.edu.fpt.sba.music4.services.impl.ArtistServiceImpl;
 import vn.edu.fpt.sba.music4.services.impl.CustomUserDetailsServiceImpl;
-import vn.edu.fpt.sba.music4.services.impl.UserDetailsServiceImpl;
+import vn.edu.fpt.sba.music4.services.impl.UserServiceImpl;
 
 import java.io.IOException;
 
@@ -22,10 +22,10 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
-    private final JwtService jwtService;
+    private final JwtUtil jwtUtil;
     private final CustomUserDetailsServiceImpl compositeUds;
-    private final ArtistDetailsServiceImpl artistDetailsService;
-    private final UserDetailsServiceImpl userDetailsService;
+    private final ArtistServiceImpl artistDetailsService;
+    private final UserServiceImpl userDetailsService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest req,
@@ -38,8 +38,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         String token    = header.substring(7);
-        String username = jwtService.extractUsername(token);
-        String source   = jwtService.extractSource(token);  // "user" | "artist"
+        String username = jwtUtil.extractUsername(token);
+        String source   = jwtUtil.extractSource(token);  // "user" | "artist"
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
             // load đúng bảng theo source, không cần thử cả hai
@@ -47,7 +47,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     ? artistDetailsService.loadUserByUsername(username)
                     : userDetailsService.loadUserByUsername(username);
 
-            if (jwtService.isValid(token, user)) {
+            if (jwtUtil.isValid(token, user)) {
                 var auth = new UsernamePasswordAuthenticationToken(
                         user, null, user.getAuthorities());
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
