@@ -47,12 +47,13 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Playlist> playlists;
 
-    public User(String name, String img, String email, String username, String password) {
+    public User(String name, String img, String email, String username, String password, String role) {
         this.name = name;
         this.img = img;
         this.email = email;
         this.userName = username;
         this.password = password;
+        this.role = role;
     }
 
     @Override
