@@ -12,11 +12,8 @@ import org.springframework.stereotype.Service;
 @Primary
 @RequiredArgsConstructor
 public class CustomUserDetailsServiceImpl implements UserDetailsService {
-    @Qualifier("userDetailsService")
-    private final UserDetailsServiceImpl userService;
-
-    @Qualifier("artistDetailsService")
-    private final ArtistDetailsServiceImpl artistService;
+    private final UserServiceImpl userService;
+    private final ArtistServiceImpl artistService;
 
 
     @Override

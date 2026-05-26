@@ -16,6 +16,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Data
 public class User implements UserDetails {
 
     @Id
@@ -45,6 +46,14 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Playlist> playlists;
+
+    public User(String name, String img, String email, String username, String password) {
+        this.name = name;
+        this.img = img;
+        this.email = email;
+        this.userName = username;
+        this.password = password;
+    }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {

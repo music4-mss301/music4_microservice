@@ -12,9 +12,9 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import vn.edu.fpt.sba.music4.services.JwtService;
-import vn.edu.fpt.sba.music4.services.impl.ArtistDetailsServiceImpl;
+import vn.edu.fpt.sba.music4.services.impl.ArtistServiceImpl;
 import vn.edu.fpt.sba.music4.services.impl.CustomUserDetailsServiceImpl;
-import vn.edu.fpt.sba.music4.services.impl.UserDetailsServiceImpl;
+import vn.edu.fpt.sba.music4.services.impl.UserServiceImpl;
 
 import java.io.IOException;
 
@@ -24,8 +24,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsServiceImpl compositeUds;
-    private final ArtistDetailsServiceImpl artistDetailsService;
-    private final UserDetailsServiceImpl userDetailsService;
+    private final ArtistServiceImpl artistDetailsService;
+    private final UserServiceImpl userDetailsService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest req,
