@@ -32,17 +32,31 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth -> auth
-                                .requestMatchers("/api/auth/**", "/test").permitAll()
+//                                .requestMatchers("/api/auth/**", "/test", "/api/albums/**").permitAll()
+                                .requestMatchers("/api/**").permitAll()
                                 .anyRequest().authenticated())
                 .authenticationProvider(authProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(exception -> exception
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            System.out.println("--- 403 FORBIDDEN AT URL: " + request.getRequestURI());
+                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                            if (auth != null) {
+                                System.out.println("Logged User: " + auth.getName());
+                                System.out.println("Current role in text: " + auth.getAuthorities());
+                            } else {
+                                System.out.println("No user in Context (Auth null)!");
+                            }
+                            response.sendError(403, "Forbidden");
+                        })
+                )
                 .build();
     }
 
     @Bean
     public AuthenticationProvider authProvider() {
         var p = new DaoAuthenticationProvider();
-        p.setUserDetailsService(customUserDetailsService);  // inject composite
+        p.setUserDetailsService(customUserDetailsService); // Sử dụng CustomUserDetailsServiceImpl để load user từ database
         p.setPasswordEncoder(passwordEncoder());
         return p;
     }
@@ -56,10 +70,5 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public AuthenticationManager authManager(AuthenticationConfiguration c) throws Exception {
-        return c.getAuthenticationManager();
     }
 }
