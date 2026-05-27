@@ -1,5 +1,9 @@
 package vn.edu.fpt.sba.music4.entities;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -17,7 +21,7 @@ public class Album {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false,columnDefinition = "NVARCHAR(100)", length = 100)
     private String name;
 
     @Column(columnDefinition = "NVARCHAR(MAX)")
@@ -27,12 +31,19 @@ public class Album {
     private LocalDate uploadDate;
 
     @Column(name = "track_total", nullable = false)
-    private Integer trackTotal;
+    private Integer trackTotal = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "albums"})
     private Artist artist;
 
     @OneToMany(mappedBy = "album", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "album"})
     private List<Track> tracks;
+
+    @PrePersist
+    protected void onCreate() {
+        this.uploadDate = LocalDate.now();
+    }
 }
