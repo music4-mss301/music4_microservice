@@ -16,7 +16,7 @@ public class Playlist {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(100)", length = 100)
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY)
