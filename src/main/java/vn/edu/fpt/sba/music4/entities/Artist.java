@@ -43,6 +43,8 @@ public class Artist implements UserDetails {
 
 //    @Column(name = "gender")
 //    private Boolean gender;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String cover;
 
     @Column(name = "album_total", nullable = false)
     private Integer albumTotal;
