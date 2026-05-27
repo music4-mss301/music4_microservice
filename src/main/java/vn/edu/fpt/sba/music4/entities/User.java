@@ -2,7 +2,13 @@ package vn.edu.fpt.sba.music4.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.Collection;
 import java.util.List;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 @Entity
 @Table(name = "USERS")
@@ -10,7 +16,8 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+@Data
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,4 +46,24 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Playlist> playlists;
+
+    public User(String name, String img, String email, String username, String password, String role) {
+        this.name = name;
+        this.img = img;
+        this.email = email;
+        this.userName = username;
+        this.password = password;
+        this.role = role;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        String roleName = (this.role.equalsIgnoreCase("admin")) ? "ROLE_ADMIN" : "ROLE_LISTENER";
+        return List.of(new SimpleGrantedAuthority(roleName));
+    }
+
+    @Override
+    public String getUsername() {
+        return this.userName;
+    }
 }

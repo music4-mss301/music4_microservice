@@ -8,6 +8,7 @@ import vn.edu.fpt.sba.music4.dtos.TrackUploadDTO;
 import vn.edu.fpt.sba.music4.entities.*;
 import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.ITrackService;
+import vn.edu.fpt.sba.music4.util.AWSUtil;
 
 import java.util.List;
 
@@ -19,84 +20,139 @@ public class TrackServiceImpl implements ITrackService {
     private TrackCategoryRepository trackCategoryRepository;
     private TrackArtistRepository trackArtistRepository;
     private ArtistRepository artistRepository;
+    private final AWSUtil awsUtil;
 
     public TrackServiceImpl(TrackRepository trackRepository,
                             AlbumRepository albumRepository,
                             CategoryRepository categoryRepository,
                             TrackCategoryRepository trackCategoryRepository,
                             TrackArtistRepository trackArtistRepository,
-                            ArtistRepository artistRepository) {
+                            ArtistRepository artistRepository,
+                            AWSUtil awsUtil) {
         this.trackRepository = trackRepository;
         this.albumRepository = albumRepository;
         this.categoryRepository = categoryRepository;
         this.trackCategoryRepository = trackCategoryRepository;
         this.trackArtistRepository = trackArtistRepository;
         this.artistRepository = artistRepository;
+        this.awsUtil = awsUtil;
     }
 
     // @Autowired
     // private FileStorageService fileStorageService; // Gọi ké service của Thành viên 1[cite: 7]
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void uploadTrack(MultipartFile audioFile, MultipartFile coverImage, TrackUploadDTO dto) {
+        // 🚨 Business Rule: Chặn ngay nếu không có ảnh bìa
+        if (coverImage == null || coverImage.isEmpty()) {
+            throw new IllegalArgumentException("Ảnh bìa là bắt buộc! Vui lòng đính kèm ảnh bìa.");
+        }
+
+        try {
+            String imageS3Key = awsUtil.uploadFile(coverImage, "images");
+            String audioS3Key = awsUtil.uploadFile(audioFile, "tracks");
+
+            Track track = new Track();
+            track.setName(dto.getTitle());
+            track.setDuration(dto.getDuration());
+            track.setFilePath(audioS3Key);
+            track.setPreviewPath(audioS3Key);
+            track.setImg(imageS3Key);
+            track.setViewCount(0);
+
+            if (dto.getAlbumId() != null) {
+                Album album = albumRepository.findById(dto.getAlbumId())
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy Album ID: " + dto.getAlbumId()));
+                track.setAlbum(album);
+            }
+
+            Track savedTrack = trackRepository.save(track);
+
+            // --- LƯU CATEGORY VÀ ARTIST (Giữ nguyên logic của ông) ---
+            saveTrackCategories(savedTrack, dto.getCategoryIds());
+            saveTrackArtists(savedTrack, dto.getArtistIds());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Upload thất bại: " + e.getMessage());
+        }
+    }
 
     @Override
-    @Transactional(rollbackFor = Exception.class) //[cite: 7]
-    public void uploadTrack(MultipartFile audioFile, MultipartFile coverImage, TrackUploadDTO dto) {
+    @Transactional(rollbackFor = Exception.class)
+    public void uploadMultipleTracks(List<MultipartFile> audioFiles, MultipartFile coverImage, TrackUploadDTO dto) {
 
-        // BƯỚC 1: Xử lý Upload file qua S3 (Tạm thời giả lập)[cite: 7]
-        String audioUrl = "https://amazon-s3-bucket.com/tracks/fake-audio-path.mp3"; //[cite: 7]
-        String imageUrl = "https://amazon-s3-bucket.com/images/fake-cover-path.jpg"; //[cite: 7]
+        if (coverImage == null || coverImage.isEmpty()) {
+            throw new IllegalArgumentException("Ảnh bìa là bắt buộc cho playlist/album này!");
+        }
+        if (audioFiles == null || audioFiles.isEmpty()) {
+            throw new IllegalArgumentException("Phải có ít nhất 1 file âm thanh!");
+        }
 
-        // BƯỚC 2: Tạo và Lưu thông tin vào bảng TRACKS[cite: 7]
-        Track track = new Track(); //[cite: 7]
-        track.setName(dto.getTitle()); //[cite: 7]
-        track.setDuration(dto.getDuration()); //[cite: 7]
-        track.setFilePath(audioUrl); //[cite: 7]
-        track.setPreviewPath(audioUrl); //[cite: 7]
-        track.setViewCount(0); //[cite: 7]
+        try {
+            // Tối ưu: Chỉ up ảnh bìa ĐÚNG 1 LẦN lên S3, các bài hát sẽ xài chung cái link này
+            String imageS3Key = awsUtil.uploadFile(coverImage, "images");
 
-        if (dto.getAlbumId() != null) { //[cite: 7]
-            Album album = albumRepository.findById(dto.getAlbumId()) //[cite: 7]
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy Album với ID: " + dto.getAlbumId())); //[cite: 7]
-            track.setAlbum(album); //[cite: 7]
-        } //[cite: 7]
+            // Vòng lặp duyệt qua từng file nhạc người dùng gửi lên
+            for (MultipartFile audioFile : audioFiles) {
+                String audioS3Key = awsUtil.uploadFile(audioFile, "tracks");
 
-        Track savedTrack = trackRepository.save(track); //[cite: 7]
+                Track track = new Track();
 
-        // BƯỚC 3: Lưu dữ liệu vào bảng trung gian TRACK_CATEGORIES[cite: 7]
-        if (dto.getCategoryIds() != null && !dto.getCategoryIds().isEmpty()) { //[cite: 7]
-            for (Integer catId : dto.getCategoryIds()) { //[cite: 7]
-                Category category = categoryRepository.findById(catId) //[cite: 7]
-                        .orElseThrow(() -> new RuntimeException("Không tồn tại Thể loại ID: " + catId)); //[cite: 7]
+                // Mẹo: Lấy luôn tên file gốc (bỏ đuôi .mp3) làm Tên bài hát cho nhanh
+                // Ví dụ: file "01 - Muộn Rồi Mà Sao Còn.mp3" -> Tên bài: "01 - Muộn Rồi Mà Sao Còn"
+                String originalName = audioFile.getOriginalFilename();
+                String trackName = (originalName != null) ? originalName.replaceAll("\\.[^.]*$", "") : "Unknown Track";
 
-                TrackCategory trackCategory = new TrackCategory(); //[cite: 7]
-                trackCategory.setTrack(savedTrack); //[cite: 7]
-                trackCategory.setCategory(category); //[cite: 7]
+                track.setName(trackName);
+                track.setDuration(0); // Vì up hàng loạt nên chưa rảnh lấy duration từng bài, set 0 tạm
+                track.setFilePath(audioS3Key);
+                track.setPreviewPath(audioS3Key);
+                track.setImg(imageS3Key); // Gắn link ảnh chung vào đây
+                track.setViewCount(0);
 
-                trackCategoryRepository.save(trackCategory); //[cite: 7]
-            } //[cite: 7]
-        } //[cite: 7]
+                if (dto.getAlbumId() != null) {
+                    Album album = albumRepository.findById(dto.getAlbumId())
+                            .orElseThrow(() -> new RuntimeException("Không tìm thấy Album ID: " + dto.getAlbumId()));
+                    track.setAlbum(album);
+                }
 
-        // BƯỚC 4: Tìm Artist thật từ DB và lưu vào bảng trung gian TRACK_ARTISTS
-        if (dto.getArtistIds() != null && !dto.getArtistIds().isEmpty()) { //[cite: 7]
-            for (int i = 0; i < dto.getArtistIds().size(); i++) { //[cite: 7]
-                Integer artistId = dto.getArtistIds().get(i); //[cite: 7]
+                Track savedTrack = trackRepository.save(track);
 
-                // Đã chỉnh sửa: Tìm kiếm Artist thật từ DB thay vì tạo đối tượng ảo[cite: 7]
-                Artist artist = artistRepository.findById(artistId)
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy Ca sĩ với ID: " + artistId));
+                saveTrackCategories(savedTrack, dto.getCategoryIds());
+                saveTrackArtists(savedTrack, dto.getArtistIds());
+            }
 
-                TrackArtist trackArtist = new TrackArtist(); //[cite: 7]
-                trackArtist.setTrack(savedTrack); //[cite: 7]
-                trackArtist.setArtist(artist); //[cite: 7]
+        } catch (Exception e) {
+            throw new RuntimeException("Upload hàng loạt thất bại: " + e.getMessage());
+        }
+    }
 
-                if (i == 0) { //[cite: 7]
-                    trackArtist.setRole("MAIN"); //[cite: 7]
-                } else { //[cite: 7]
-                    trackArtist.setRole("FEAT"); //[cite: 7]
-                } //[cite: 7]
+    private void saveTrackCategories(Track track, List<Integer> categoryIds) {
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            for (Integer catId : categoryIds) {
+                Category category = categoryRepository.findById(catId)
+                        .orElseThrow(() -> new RuntimeException("Không tồn tại Thể loại ID: " + catId));
+                TrackCategory trackCategory = new TrackCategory();
+                trackCategory.setTrack(track);
+                trackCategory.setCategory(category);
+                trackCategoryRepository.save(trackCategory);
+            }
+        }
+    }
 
-                trackArtistRepository.save(trackArtist); //[cite: 7]
-            } //[cite: 7]
-        } //[cite: 7]
+    private void saveTrackArtists(Track track, List<Integer> artistIds) {
+        if (artistIds != null && !artistIds.isEmpty()) {
+            for (int i = 0; i < artistIds.size(); i++) {
+                Integer currentArtistId = artistIds.get(i);
+                Artist artist = artistRepository.findById(currentArtistId)
+                        .orElseThrow(() -> new RuntimeException("Không tìm thấy Ca sĩ ID: " + currentArtistId));
+                TrackArtist trackArtist = new TrackArtist();
+                trackArtist.setTrack(track);
+                trackArtist.setArtist(artist);
+                trackArtist.setRole(i == 0 ? "MAIN" : "FEAT");
+                trackArtistRepository.save(trackArtist);
+            }
+        }
     }
 
     @Override
