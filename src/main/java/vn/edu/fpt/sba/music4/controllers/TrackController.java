@@ -36,6 +36,18 @@ public class TrackController {
         return ResponseEntity.ok("Upload bài hát và lưu thông tin thành công!");
     }
 
+    @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload hàng loạt bài hát", description = "Nhận vào nhiều file âm thanh cùng một ảnh bìa và thông tin DTO để upload hàng loạt")
+    @ApiResponse(responseCode = "200", description = "Upload hàng loạt bài hát thành công")
+    @ApiResponse(responseCode = "400", description = "Dữ liệu đầu vào hoặc file không hợp lệ")
+    public ResponseEntity<String> uploadMultipleTracks(
+            @RequestPart("audioFiles") List<MultipartFile> audioFiles, // Nhận list file
+            @RequestPart("coverImage") MultipartFile coverImage,
+            @ModelAttribute TrackUploadDTO dto) {
+        trackService.uploadMultipleTracks(audioFiles, coverImage, dto);
+        return ResponseEntity.ok("Upload hàng loạt " + audioFiles.size() + " bài hát thành công!");
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Lấy chi tiết bài hát theo ID", description = "Trả về toàn bộ thông tin chi tiết của một bài hát")
     @ApiResponse(responseCode = "200", description = "Tìm thấy bài hát thành công")
@@ -71,6 +83,6 @@ public class TrackController {
     public ResponseEntity<String> deleteTrack(
             @Parameter(description = "ID bài hát cần xóa", example = "1") @PathVariable Integer id) {
         trackService.deleteTrack(id);
-        return ResponseEntity.ok("Xóa bài hát hoàn toàn thành công!");
+        return ResponseEntity.ok("Xóa bài hát thành công!");
     }
 }

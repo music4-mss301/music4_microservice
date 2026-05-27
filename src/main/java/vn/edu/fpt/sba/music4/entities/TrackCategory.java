@@ -1,5 +1,8 @@
 package vn.edu.fpt.sba.music4.entities;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -19,9 +22,11 @@ public class TrackCategory {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "track_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "trackArtists", "trackCategories", "album"})
     private Track track;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "trackCategories"})
     private Category category;
 }

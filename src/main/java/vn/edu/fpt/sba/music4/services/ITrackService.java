@@ -9,7 +9,7 @@ import java.util.List;
 public interface ITrackService {
     // Luồng thêm mới (Upload)[cite: 1, 6]
     void uploadTrack(MultipartFile audioFile, MultipartFile coverImage, TrackUploadDTO dto);
-
+    void uploadMultipleTracks(List<MultipartFile> audioFiles, MultipartFile coverImage, TrackUploadDTO dto);
     // Luồng tìm kiếm/hiển thị phục vụ quản lý của Thành viên 5
     Track getTrackById(Integer id);
     List<Track> getTracksByAlbumId(Integer albumId);
