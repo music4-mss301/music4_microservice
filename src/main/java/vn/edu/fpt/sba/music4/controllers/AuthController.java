@@ -10,10 +10,15 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.LoginRequest;
+import vn.edu.fpt.sba.music4.dtos.request.RefreshRequest;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.response.AuthResponse;
+import vn.edu.fpt.sba.music4.dtos.response.TokenResponse;
+import vn.edu.fpt.sba.music4.entities.Artist;
+import vn.edu.fpt.sba.music4.entities.RefreshToken;
 import vn.edu.fpt.sba.music4.enums.ERole;
 import vn.edu.fpt.sba.music4.services.impl.ArtistServiceImpl;
+import vn.edu.fpt.sba.music4.services.impl.RefreshTokenServiceImpl;
 import vn.edu.fpt.sba.music4.util.EnumUtil;
 import vn.edu.fpt.sba.music4.util.JwtUtil;
 import vn.edu.fpt.sba.music4.services.impl.CustomUserDetailsServiceImpl;
@@ -28,32 +33,47 @@ public class AuthController {
     private final CustomUserDetailsServiceImpl userDetailsService;
     private final UserServiceImpl userService;
     private final ArtistServiceImpl artistService;
+    private final RefreshTokenServiceImpl refreshTokenService;
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest loginRequest) {
-        try {
+    public ResponseEntity<TokenResponse> login(@RequestBody LoginRequest loginRequest) {
+//        try {
             // 1. Xác thực thông tin username và password
-            // Nếu sai, dòng này sẽ ném ra BadCredentialsException
             Authentication authentication = authManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password()));
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.username(),
+                            loginRequest.password()));
 
-
-//            UserDetails user = this.userDetailsService.loadUserByUsername(loginRequest.username());
             UserDetails user = (UserDetails) authentication.getPrincipal();
+            String source = (user instanceof Artist) ? "artist" : "user";
+            String accessToken = jwtUtil.generateToken(user);
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername(), source);
+            return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken()));
 
-            String token = jwtUtil.generateToken(user);
+//        } catch (BadCredentialsException e) {
+//            // Sai mật khẩu/tài khoản -> Trả về 401 Unauthorized kèm thông báo
+////            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponse("Invalid username or password"));
+//        } catch (Exception e) {
+//            // Các lỗi hệ thống khác (ví dụ lỗi JWT) -> In ra console để bạn debug
+//            e.printStackTrace();
+////            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new AuthResponse("An error occurred during authentication"));
+//        }
+    }
 
-            System.out.println(token);
-            return ResponseEntity.ok(new AuthResponse(token));
+    @PostMapping("/refresh")
+    public ResponseEntity<TokenResponse> refresh(@RequestBody RefreshRequest req) {
+        RefreshToken rt   = refreshTokenService.verifyRefreshToken(req.refreshToken());
+        UserDetails user  = userDetailsService.loadUserByUsername(rt.getUsername());
+        String newAccess  = jwtUtil.generateToken(user);
+        RefreshToken newRt = refreshTokenService.rotate(rt);         // token rotation
 
-        } catch (BadCredentialsException e) {
-            // Sai mật khẩu/tài khoản -> Trả về 401 Unauthorized kèm thông báo
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponse("Invalid username or password"));
-        } catch (Exception e) {
-            // Các lỗi hệ thống khác (ví dụ lỗi JWT) -> In ra console để bạn debug
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new AuthResponse("An error occurred during authentication"));
-        }
+        return ResponseEntity.ok(new TokenResponse(newAccess, newRt.getToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@RequestBody RefreshRequest req) {
+        refreshTokenService.revokeByToken(req.refreshToken());
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/register")

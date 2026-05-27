@@ -59,7 +59,7 @@ public class SearchServiceImpl implements ISearchService {
             ));
 
             Page<ArtistResponseDTO> artistDTOPage = artistPage.map(artist -> new ArtistResponseDTO(
-                    artist.getId(), artist.getName(), artist.getImg(), artist.getUserName(),artist.getTrackTotal(),artist.getAlbumTotal()
+                    artist.getId(), artist.getName(), artist.getImg(), artist.getUsername(),artist.getTrackTotal(),artist.getAlbumTotal()
             ));
 
             Page<PlaylistResponseDTO> playlistDTOPage = playlistPage.map(playlist -> new PlaylistResponseDTO(
@@ -84,7 +84,7 @@ public class SearchServiceImpl implements ISearchService {
 
             case "artist" -> {
                 Page<ArtistResponseDTO> artistDTOPage = artistRepository.searchByName(cleanKey, pageable).map(artist -> new ArtistResponseDTO(
-                        artist.getId(), artist.getName(), artist.getImg(), artist.getUserName(),artist.getTrackTotal(),artist.getAlbumTotal()
+                        artist.getId(), artist.getName(), artist.getImg(), artist.getUsername(),artist.getTrackTotal(),artist.getAlbumTotal()
                 ));
                 yield new SearchResultResponseDTO(null, null, artistDTOPage, null, null);
             }
