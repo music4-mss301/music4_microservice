@@ -16,6 +16,7 @@ public class Music4Application {
         dotenv.entries().forEach(entry ->
                 System.setProperty(entry.getKey(), entry.getValue())
         );
+
         SpringApplication.run(Music4Application.class, args);
     }
 
