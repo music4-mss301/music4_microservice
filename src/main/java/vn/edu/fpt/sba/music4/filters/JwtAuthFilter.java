@@ -41,11 +41,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String username = jwtUtil.extractUsername(token);
         String source   = jwtUtil.extractSource(token);  // "user" | "artist"
 
+
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            // load đúng bảng theo source, không cần thử cả hai
             UserDetails user = "artist".equals(source)
                     ? artistDetailsService.loadUserByUsername(username)
                     : userDetailsService.loadUserByUsername(username);
+            System.out.println("Load Ok: " + user.getUsername() + " - " + user.getAuthorities());
 
             if (jwtUtil.isValid(token, user)) {
                 var auth = new UsernamePasswordAuthenticationToken(
@@ -54,6 +55,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
         }
+
         chain.doFilter(req, res);
     }
 }

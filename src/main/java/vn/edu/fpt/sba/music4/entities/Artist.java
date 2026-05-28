@@ -26,7 +26,7 @@ public class Artist implements UserDetails {
     @Column(columnDefinition = "NVARCHAR(MAX)")
     private String img;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, columnDefinition = "NVARCHAR(100)",length = 100)
     private String name;
 
     @Column(nullable = false, length = 100, unique = true)
@@ -43,6 +43,8 @@ public class Artist implements UserDetails {
 
 //    @Column(name = "gender")
 //    private Boolean gender;
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String cover;
 
     @Column(name = "album_total", nullable = false)
     private Integer albumTotal;
