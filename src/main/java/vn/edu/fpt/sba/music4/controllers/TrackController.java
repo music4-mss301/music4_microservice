@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.TrackUploadDTO;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.services.ITrackService;
+import vn.edu.fpt.sba.music4.services.impl.TrackServiceImpl;
 
 import java.util.List;
 
@@ -24,6 +26,11 @@ public class TrackController {
         this.trackService = trackService;
     }
 
+    @GetMapping("")
+    public List<Track> getAllTrack() {
+        return trackService.getAllTrack();
+    }
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload bài hát mới kèm file", description = "Nhận vào file âm thanh, ảnh bìa và thông tin DTO dưới dạng Multipart Form-Data")
     @ApiResponse(responseCode = "200", description = "Upload bài hát và lưu thông tin thành công")
@@ -31,7 +38,14 @@ public class TrackController {
     public ResponseEntity<String> uploadTrack(
             @RequestPart("audioFile") MultipartFile audioFile,
             @RequestPart("coverImage") MultipartFile coverImage,
-            @ModelAttribute TrackUploadDTO dto) {
+            @ModelAttribute @Valid TrackUploadDTO dto) {
+        // Kiểm tra an toàn trước khi xử lý ngầm
+        if (audioFile.isEmpty()) {
+            return ResponseEntity.badRequest().body("Lỗi: File âm thanh (audioFile) không được để trống!");
+        }
+        if (coverImage.isEmpty()) {
+            return ResponseEntity.badRequest().body("Lỗi: File ảnh bìa (coverImage) không được để trống!");
+        }
         trackService.uploadTrack(audioFile, coverImage, dto);
         return ResponseEntity.ok("Upload bài hát và lưu thông tin thành công!");
     }

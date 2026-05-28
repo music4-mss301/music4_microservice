@@ -10,6 +10,7 @@ import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.ITrackService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -49,9 +50,11 @@ public class TrackServiceImpl implements ITrackService {
         }
 
         try {
+            // 1. Upload file lên AWS S3
             String imageS3Key = awsUtil.uploadFile(coverImage, "images");
             String audioS3Key = awsUtil.uploadFile(audioFile, "tracks");
 
+            // 2. Khởi tạo đối tượng Track và map dữ liệu cơ bản
             Track track = new Track();
             track.setName(dto.getTitle());
             track.setDuration(dto.getDuration());
@@ -60,17 +63,43 @@ public class TrackServiceImpl implements ITrackService {
             track.setImg(imageS3Key);
             track.setViewCount(0);
 
+            // 3. Xử lý Album (Nếu có truyền albumId)
             if (dto.getAlbumId() != null) {
                 Album album = albumRepository.findById(dto.getAlbumId())
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy Album ID: " + dto.getAlbumId()));
                 track.setAlbum(album);
             }
 
+            // 4. Lưu bài hát vào Database trước để lấy savedTrack (đã có ID tự tăng)
             Track savedTrack = trackRepository.save(track);
 
-            // --- LƯU CATEGORY VÀ ARTIST (Giữ nguyên logic của ông) ---
+            // 5. Xử lý lưu Thể loại nhạc (Category) vào bảng trung gian
             saveTrackCategories(savedTrack, dto.getCategoryIds());
-            saveTrackArtists(savedTrack, dto.getArtistIds());
+
+            // 6. 🛠️ XỬ LÝ LƯU NGHỆ SĨ (TRACK_ARTIST) CHUẨN XÁC VÀ AN TOÀN CHỐNG TRÙNG:
+            java.util.List<Integer> finalArtistIds = new java.util.ArrayList<>();
+
+            // Ưu tiên nạp artistId lẻ (ca sĩ chính) vào vị trí đầu tiên để hàm saveTrackArtists gán vai trò "MAIN"
+            if (dto.getArtistId() != null) {
+                finalArtistIds.add(dto.getArtistId());
+            }
+
+            // Nếu có truyền thêm danh sách artistIds, tiến hành nạp tiếp và lọc trùng dữ liệu
+            if (dto.getArtistIds() != null && !dto.getArtistIds().isEmpty()) {
+                for (Integer id : dto.getArtistIds()) {
+                    if (!finalArtistIds.contains(id)) {
+                        finalArtistIds.add(id);
+                    }
+                }
+            }
+
+            // Khống chế: Bài hát bắt buộc phải có ít nhất 1 ca sĩ sở hữu
+            if (finalArtistIds.isEmpty()) {
+                throw new IllegalArgumentException("Bài hát bắt buộc phải có ít nhất một Ca sĩ/Nghệ sĩ thể hiện!");
+            }
+
+            // Gọi hàm để lưu toàn bộ danh sách nghệ sĩ này vào bảng trung gian TrackArtist
+            saveTrackArtists(savedTrack, finalArtistIds);
 
         } catch (Exception e) {
             throw new RuntimeException("Upload thất bại: " + e.getMessage());
@@ -172,6 +201,11 @@ public class TrackServiceImpl implements ITrackService {
         // Tận dụng quan hệ JPA: Tìm album rồi bốc danh sách bài hát thuộc album đó ra
         Album album = albumRepository.findById(albumId).orElse(null);
         return album != null ? album.getTracks() : List.of();
+    }
+
+    @Override
+    public List<Track> getAllTrack() {
+        return trackRepository.findAll();
     }
 
     @Override

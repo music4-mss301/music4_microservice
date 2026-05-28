@@ -13,7 +13,7 @@ public interface ITrackService {
     // Luồng tìm kiếm/hiển thị phục vụ quản lý của Thành viên 5
     Track getTrackById(Integer id);
     List<Track> getTracksByAlbumId(Integer albumId);
-
+    List<Track> getAllTrack();
     // Luồng chỉnh sửa và xóa metadata bài hát[cite: 6]
     Track updateTrackMetadata(Integer id, TrackUploadDTO dto);
     void deleteTrack(Integer id);

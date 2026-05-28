@@ -10,6 +10,7 @@ import java.util.List;
 public class TrackUploadDTO {
 
     private String title;          // Tên bài hát
+    private Integer artistId;
     private Integer duration;      // Thời lượng bài hát (tính bằng giây)
     private Integer albumId;       // ID của Album (nếu có, không có thì để null)[cite: 1]
 
