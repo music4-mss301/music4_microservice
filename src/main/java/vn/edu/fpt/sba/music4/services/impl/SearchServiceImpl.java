@@ -50,7 +50,7 @@ public class SearchServiceImpl implements ISearchService {
             Page<Category> categoryPage = categoryRepository.searchByName(cleanKey, pageable);
 
             Page<TrackResponseDTO> trackDTOPage = trackPage.map(track -> new TrackResponseDTO(
-                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
+                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getFilePath(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
             ));
 
             Page<AlbumResponseDTO> albumDTOPage = albumPage.map(album -> new AlbumResponseDTO(
@@ -77,7 +77,7 @@ public class SearchServiceImpl implements ISearchService {
         // 2. TÌM KIẾM CHI TIẾT THEO TYPE
         return switch (type.toLowerCase()) {
             case "track" -> {Page<TrackResponseDTO> trackDTOPage = trackRepository.searchByName(cleanKey,pageable).map(track -> new TrackResponseDTO(
-                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
+                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getFilePath(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
             ));
             yield new SearchResultResponseDTO(trackDTOPage,null,null,null,null);
             }

@@ -1,16 +1,15 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.TrackUploadDTO;
+import vn.edu.fpt.sba.music4.dtos.response.*;
 import vn.edu.fpt.sba.music4.entities.*;
 import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.ITrackService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -43,7 +42,7 @@ public class TrackServiceImpl implements ITrackService {
     // private FileStorageService fileStorageService; // Gọi ké service của Thành viên 1[cite: 7]
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void uploadTrack(MultipartFile audioFile, MultipartFile coverImage, TrackUploadDTO dto) {
+    public TrackDetailResponseDTO uploadTrack(MultipartFile audioFile, MultipartFile coverImage, TrackUploadDTO dto) {
         // 🚨 Business Rule: Chặn ngay nếu không có ảnh bìa
         if (coverImage == null || coverImage.isEmpty()) {
             throw new IllegalArgumentException("Ảnh bìa là bắt buộc! Vui lòng đính kèm ảnh bìa.");
@@ -70,16 +69,16 @@ public class TrackServiceImpl implements ITrackService {
                 track.setAlbum(album);
             }
 
-            // 4. Lưu bài hát vào Database trước để lấy savedTrack (đã có ID tự tăng)
+            // 4. Lưu bài hát vào Database trước để lấy savedTrack (đã có ID tự tăng và uploadDate từ @PrePersist)
             Track savedTrack = trackRepository.save(track);
 
             // 5. Xử lý lưu Thể loại nhạc (Category) vào bảng trung gian
             saveTrackCategories(savedTrack, dto.getCategoryIds());
 
-            // 6. 🛠️ XỬ LÝ LƯU NGHỆ SĨ (TRACK_ARTIST) CHUẨN XÁC VÀ AN TOÀN CHỐNG TRÙNG:
+            // 6. XỬ LÝ LƯU NGHỆ SĨ (TRACK_ARTIST) CHUẨN XÁC VÀ AN TOÀN CHỐNG TRÙNG:
             java.util.List<Integer> finalArtistIds = new java.util.ArrayList<>();
 
-            // Ưu tiên nạp artistId lẻ (ca sĩ chính) vào vị trí đầu tiên để hàm saveTrackArtists gán vai trò "MAIN"
+            // Ưu tiên nạp artistId lẻ (ca sĩ chính) vào vị trí đầu tiên để gán vai trò "MAIN"
             if (dto.getArtistId() != null) {
                 finalArtistIds.add(dto.getArtistId());
             }
@@ -100,6 +99,10 @@ public class TrackServiceImpl implements ITrackService {
 
             // Gọi hàm để lưu toàn bộ danh sách nghệ sĩ này vào bảng trung gian TrackArtist
             saveTrackArtists(savedTrack, finalArtistIds);
+
+            // 7. 🚨 QUYẾT ĐỊNH: Chuyển đổi sang Record DTO sạch trước khi trả về Controller
+            // Sử dụng hàm toDetailResponseDto bạn đã viết ở cuối file để bóc tách sạch sẽ dữ liệu quan hệ vừa lưu thành công!
+            return this.toDetailResponseDto(savedTrack);
 
         } catch (Exception e) {
             throw new RuntimeException("Upload thất bại: " + e.getMessage());
@@ -175,6 +178,9 @@ public class TrackServiceImpl implements ITrackService {
                 Integer currentArtistId = artistIds.get(i);
                 Artist artist = artistRepository.findById(currentArtistId)
                         .orElseThrow(() -> new RuntimeException("Không tìm thấy Ca sĩ ID: " + currentArtistId));
+                Integer trackTotal = artist.getTrackTotal();
+                artist.setTrackTotal(trackTotal == null ? 1 : trackTotal + 1);
+                artistRepository.save(artist);
                 TrackArtist trackArtist = new TrackArtist();
                 trackArtist.setTrack(track);
                 trackArtist.setArtist(artist);
@@ -186,88 +192,243 @@ public class TrackServiceImpl implements ITrackService {
 
     @Override
     @Transactional(readOnly = true)
-    public Track getTrackById(Integer id) {
-        return trackRepository.findById(id)
+    public TrackDetailResponseDTO getTrackById(Integer id) {
+        Track track = trackRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát với ID: " + id));
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Track> getTracksByAlbumId(Integer albumId) {
-        // Kiểm tra xem album có tồn tại hay không trước khi tìm kiếm
-        if (!albumRepository.existsById(albumId)) {
-            throw new RuntimeException("Không tìm thấy Album với ID: " + albumId);
+        // 2. Ánh xạ Album (Trả về null nếu là bài hát Single không thuộc album nào)
+        AlbumResponseDTO albumDTO = null;
+        if (track.getAlbum() != null) {
+            albumDTO = new AlbumResponseDTO(
+                    track.getAlbum().getId(),
+                    track.getAlbum().getName(),
+                    track.getAlbum().getImg(),
+                    track.getAlbum().getUploadDate(),
+                    track.getAlbum().getTrackTotal(),
+                    track.getAlbum().getArtist().getId()
+            );
         }
-        // Tận dụng quan hệ JPA: Tìm album rồi bốc danh sách bài hát thuộc album đó ra
-        Album album = albumRepository.findById(albumId).orElse(null);
-        return album != null ? album.getTracks() : List.of();
-    }
 
-    @Override
-    public List<Track> getAllTrack() {
-        return trackRepository.findAll();
+        // 3. Ánh xạ danh sách Artists từ bảng trung gian TrackArtist sang TrackArtistInfo
+        List<TrackArtistInfo> artistList = List.of();
+        if (track.getTrackArtists() != null) {
+            artistList = track.getTrackArtists().stream()
+                    .map(ta -> new TrackArtistInfo(
+                            ta.getArtist().getId(),
+                            ta.getArtist().getName(),
+                            ta.getRole() // Vai trò MAIN hoặc FEAT
+                    )).toList();
+        }
+
+        // 4. Ánh xạ danh sách Categories từ bảng trung gian TrackCategory sang CategoryResponseDTO
+        List<CategoryResponseDTO> categoryList = List.of();
+        if (track.getTrackCategories() != null) {
+            categoryList = track.getTrackCategories().stream()
+                    .map(tc -> new CategoryResponseDTO(
+                            tc.getCategory().getId(),
+                            tc.getCategory().getName()
+                    )).toList();
+        }
+        return new TrackDetailResponseDTO(
+                track.getId(),
+                track.getName(),
+                track.getImg(),
+                track.getDuration(),
+                track.getFilePath(),
+                track.getPreviewPath(),
+                track.getUploadDate(),
+                track.getViewCount(),
+                albumDTO,
+                artistList,
+                categoryList
+        );
     }
 
     @Override
     @Transactional
-    public Track updateTrackMetadata(Integer id, TrackUploadDTO dto) {
-        Track existingTrack = getTrackById(id);
+    public List<TrackResponseDTO> getTracksByAlbumId(Integer albumId) {
+        // Tìm danh sách Entity từ Repository
+        List<Track> tracks = trackRepository.findByAlbumId(albumId);
 
-        // 1. Cập nhật các thông tin cơ bản của bài hát
+        // Dùng Stream map toàn bộ danh sách sang phiên bản DTO rút gọn
+        return tracks.stream()
+                .map(this::toResponseDto)
+                .toList();
+    }
+
+    public TrackResponseDTO toResponseDto(Track track) {
+        if (track == null) return null;
+
+        return new TrackResponseDTO(
+                track.getId(),
+                track.getName(),
+                track.getImg(),
+                track.getDuration(),
+                track.getFilePath(),
+                track.getPreviewPath(),
+                track.getViewCount(),
+                track.getUploadDate()
+        );
+    }
+
+    @Override
+    public List<TrackResponseDTO> getAllTrack() {
+        return trackRepository.findAll().stream()
+                .map(this::toResponseDto)
+                .toList();
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public TrackDetailResponseDTO updateTrackMetadata(Integer id, TrackUploadDTO dto) {
+        // 1. Tìm bài hát hiện tại trong Database
+        Track existingTrack = trackRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát ID: " + id));
+
+        // 2. Cập nhật các thông tin cơ bản của bài hát
         existingTrack.setName(dto.getTitle());
         existingTrack.setDuration(dto.getDuration());
 
-        // 2. Cập nhật Album
+        // 3. Cập nhật mối quan hệ Album (Nếu null nghĩa là chuyển bài hát thành Single lẻ)
         if (dto.getAlbumId() != null) {
             Album album = albumRepository.findById(dto.getAlbumId())
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy Album với ID: " + dto.getAlbumId()));
             existingTrack.setAlbum(album);
         } else {
-            existingTrack.setAlbum(null); // Bài hát đơn lẻ, không thuộc album
+            existingTrack.setAlbum(null);
         }
 
-        Track updatedTrack = trackRepository.save(existingTrack);
-
-        // 3. Cập nhật lại Thể loại (Xóa các liên kết cũ trong bảng trung gian và nạp liên kết mới)
-        // Lưu ý: Mẹo mượn tính năng mồ côi orphanRemoval = true ở Entity giúp việc làm sạch bảng trung gian rất gọn
-        updatedTrack.getTrackCategories().clear();
+        // 4. Cập nhật lại Thể loại (Xóa liên kết cũ, nạp liên kết mới)
+        existingTrack.getTrackCategories().clear();
         if (dto.getCategoryIds() != null) {
             for (Integer catId : dto.getCategoryIds()) {
                 Category category = categoryRepository.findById(catId)
                         .orElseThrow(() -> new RuntimeException("Không tồn tại Thể loại ID: " + catId));
+
                 TrackCategory trackCategory = new TrackCategory();
-                trackCategory.setTrack(updatedTrack);
+                trackCategory.setTrack(existingTrack);
                 trackCategory.setCategory(category);
-                updatedTrack.getTrackCategories().add(trackCategory);
+                existingTrack.getTrackCategories().add(trackCategory);
             }
         }
 
-        // 4. Cập nhật lại Nghệ sĩ phối hợp (MAIN & FEAT)
-        updatedTrack.getTrackArtists().clear();
-        if (dto.getArtistIds() != null) {
-            for (int i = 0; i < dto.getArtistIds().size(); i++) {
-                Integer artistId = dto.getArtistIds().get(i);
-                Artist artist = artistRepository.findById(artistId)
-                        .orElseThrow(() -> new RuntimeException("Không tìm thấy Ca sĩ với ID: " + artistId));
+        // 5. 🛠️ GOM DANH SÁCH NGHỆ SĨ AN TOÀN CHỐNG TRÙNG VÀ PHÂN VAI TRÒ (MAIN/FEAT)
+        java.util.List<Integer> finalArtistIds = new java.util.ArrayList<>();
 
-                TrackArtist trackArtist = new TrackArtist();
-                trackArtist.setTrack(updatedTrack);
-                trackArtist.setArtist(artist);
-                trackArtist.setRole(i == 0 ? "MAIN" : "FEAT");
+        // Ưu tiên nạp artistId lẻ (ca sĩ chính) vào vị trí đầu tiên
+        if (dto.getArtistId() != null) {
+            finalArtistIds.add(dto.getArtistId());
+        }
 
-                updatedTrack.getTrackArtists().add(trackArtist);
+        // Nạp tiếp danh sách nghệ sĩ collab/phụ nếu có và tiến hành lọc trùng
+        if (dto.getArtistIds() != null && !dto.getArtistIds().isEmpty()) {
+            for (Integer artistId : dto.getArtistIds()) {
+                if (!finalArtistIds.contains(artistId)) {
+                    finalArtistIds.add(artistId);
+                }
             }
         }
 
-        return trackRepository.save(updatedTrack);
+        // Chặn lỗi: Bài hát sau khi cập nhật vẫn bắt buộc phải có ít nhất 1 ca sĩ thể hiện
+        if (finalArtistIds.isEmpty()) {
+            throw new IllegalArgumentException("Bài hát bắt buộc phải có ít nhất một Ca sĩ/Nghệ sĩ thể hiện!");
+        }
+
+        // Tiến hành dọn dẹp bảng trung gian cũ và lưu danh sách mới vào
+        existingTrack.getTrackArtists().clear();
+        for (int i = 0; i < finalArtistIds.size(); i++) {
+            Integer artistId = finalArtistIds.get(i);
+            Artist artist = artistRepository.findById(artistId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy Ca sĩ với ID: " + artistId));
+
+            TrackArtist trackArtist = new TrackArtist();
+            trackArtist.setTrack(existingTrack);
+            trackArtist.setArtist(artist);
+            trackArtist.setRole(i == 0 ? "MAIN" : "FEAT"); // Vị trí đầu tiên luôn là MAIN
+
+            existingTrack.getTrackArtists().add(trackArtist);
+        }
+
+        // 6. Lưu thực thể cuối cùng xuống Database
+        Track savedTrack = trackRepository.save(existingTrack);
+
+        // 7. 🚨 QUYẾT ĐỊNH: Chuyển đổi sang Record DTO sạch trước khi trả về Controller
+        return this.toDetailResponseDto(savedTrack);
+    }
+
+    // 💡 Hàm hỗ trợ 1: Chuyển đổi từ Track sang TrackDetailResponseDTO (Full thông tin chi tiết)
+    public TrackDetailResponseDTO toDetailResponseDto(Track track) {
+        if (track == null) return null;
+
+        // 1. Ánh xạ Album (Trả về null nếu là bài hát Single không thuộc album nào)
+        AlbumResponseDTO albumDTO = null;
+        if (track.getAlbum() != null) {
+            albumDTO = new AlbumResponseDTO(
+                    track.getAlbum().getId(),
+                    track.getAlbum().getName(),
+                    track.getAlbum().getImg(),
+                    track.getAlbum().getUploadDate(),
+                    track.getAlbum().getTrackTotal(),
+                    track.getAlbum().getArtist().getId()
+            );
+        }
+
+        // 2. Ánh xạ danh sách Artists từ bảng trung gian TrackArtist
+        java.util.List<TrackArtistInfo> artistList = java.util.List.of();
+        if (track.getTrackArtists() != null) {
+            artistList = track.getTrackArtists().stream()
+                    .map(ta -> new TrackArtistInfo(
+                            ta.getArtist().getId(),
+                            ta.getArtist().getName(),
+                            ta.getRole() // Lấy vai trò MAIN hoặc FEAT từ bảng trung gian
+                    )).toList();
+        }
+
+        // 3. Ánh xạ danh sách Categories từ bảng trung gian TrackCategory
+        java.util.List<CategoryResponseDTO> categoryList = java.util.List.of();
+        if (track.getTrackCategories() != null) {
+            categoryList = track.getTrackCategories().stream()
+                    .map(tc -> new CategoryResponseDTO(
+                            tc.getCategory().getId(),
+                            tc.getCategory().getName()
+                    )).toList();
+        }
+
+        // 4. Trả về đối tượng Record hoàn chỉnh
+        return new TrackDetailResponseDTO(
+                track.getId(),
+                track.getName(),
+                track.getImg(),
+                track.getDuration(),
+                track.getFilePath(),
+                track.getPreviewPath(),
+                track.getUploadDate(),
+                track.getViewCount(),
+                albumDTO,
+                artistList,
+                categoryList
+        );
     }
 
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void deleteTrack(Integer id) {
-        Track track = getTrackById(id);
-        // Nhờ cấu hình CascadeType.ALL và orphanRemoval = true ở thực thể Track,
-        // lệnh xóa bài hát này sẽ tự động dọn sạch các dòng liên quan trong bảng TRACK_CATEGORIES và TRACK_ARTISTS
+        // 1. Tìm bài hát xem có tồn tại không trước khi tiến hành xóa
+        Track track = trackRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát ID: " + id));
+
+        // 2. 🔥 GIẢM TRACK TOTAL CỦA CÁC NGHỆ SĨ THAM GIA BÀI HÁT NÀY
+        if (track.getTrackArtists() != null) {
+            for (TrackArtist trackArtist : track.getTrackArtists()) {
+                Artist artist = trackArtist.getArtist();
+                Integer currentTotal = artist.getTrackTotal();
+                if (currentTotal != null && currentTotal > 0) {
+                    artist.setTrackTotal(currentTotal - 1);
+                    artistRepository.save(artist); // Cập nhật lại số lượng mới xuống DB
+                }
+            }
+        }
+
+        // 3. Tiến hành xóa bài hát (Cascade sẽ tự động dọn dẹp liên kết ở các bảng trung gian)
         trackRepository.delete(track);
     }
 }

@@ -2,6 +2,7 @@ package vn.edu.fpt.sba.music4.services.impl;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import vn.edu.fpt.sba.music4.dtos.response.CategoryResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Category;
 import vn.edu.fpt.sba.music4.repositories.CategoryRepository;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
@@ -16,10 +17,21 @@ public class CategoryServiceImpl implements ICategoryService {
         this.categoryRepository = categoryRepository;
     }
 
+    public CategoryResponseDTO toResponseDto(Category category) {
+        if (category == null) return null;
+
+        return new CategoryResponseDTO(
+                category.getId(),
+                category.getName()
+        );
+    }
+
     @Override
     @Transactional(readOnly = true)
-    public List<Category> getAllCategories() {
-        return categoryRepository.findAll();
+    public List<CategoryResponseDTO> getAllCategories() {
+        return categoryRepository.findAll().stream()
+                .map(this::toResponseDto)
+                .toList();
     }
 
     @Override
