@@ -423,7 +423,7 @@ public class TrackServiceImpl implements ITrackService {
                 Integer currentTotal = artist.getTrackTotal();
                 if (currentTotal != null && currentTotal > 0) {
                     artist.setTrackTotal(currentTotal - 1);
-                    artistRepository.save(artist); // Cập nhật lại số lượng mới xuống DB
+                    artistRepository.save(artist); // Cập nhật lại số lượng mới xuống db
                 }
             }
         }
