@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.fpt.sba.music4.dtos.response.CategoryResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Category;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
 
@@ -24,7 +25,7 @@ public class CategoryController {
     @GetMapping
     @Operation(summary = "Lấy toàn bộ danh sách thể loại nhạc", description = "Trả về tất cả thể loại có trong hệ thống để đưa vào form chọn")
     @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công")
-    public ResponseEntity<List<Category>> getAllCategories() {
+    public ResponseEntity<List<CategoryResponseDTO>> getAllCategories() {
         return ResponseEntity.ok(categoryService.getAllCategories());
     }
 

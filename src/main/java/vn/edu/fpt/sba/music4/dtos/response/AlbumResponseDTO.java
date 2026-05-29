@@ -9,5 +9,4 @@ public record AlbumResponseDTO(
         LocalDate uploadDate,
         Integer trackTotal,
         Integer artistId  // Chỉ lấy ID của Artist thay vì cả object Artist
-){
-}
+) {}

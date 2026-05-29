@@ -34,4 +34,5 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
                     "OR (REPLACE(LOWER(a.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%')",
             nativeQuery = true)
     Page<Track> searchByName(@Param("keyword") String keyword, Pageable pageable);
+    List<Track> findByAlbumId(Integer albumId);
 }
