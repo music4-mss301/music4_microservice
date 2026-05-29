@@ -70,7 +70,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance();//Test ko encode
-//        return new BCryptPasswordEncoder();
+//        return NoOpPasswordEncoder.getInstance();//Test ko endcode
+        return new BCryptPasswordEncoder();
     }
 }

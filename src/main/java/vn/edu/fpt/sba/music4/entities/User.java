@@ -46,7 +46,7 @@ public class User implements UserDetails {
     private String role;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    @JsonIgnore
+//    @JsonIgnore
     private List<Playlist> playlists;
 
     public User(String name, String img, String email, String username, String password, String role) {
