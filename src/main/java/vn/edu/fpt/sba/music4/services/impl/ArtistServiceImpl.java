@@ -7,6 +7,7 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
+import vn.edu.fpt.sba.music4.dtos.response.ArtistResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
@@ -36,10 +37,25 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Nghệ sĩ với ID: " + id));
     }
 
+    public ArtistResponseDTO toResponseDto(Artist artist) {
+        if (artist == null) return null;
+
+        return new ArtistResponseDTO(
+                artist.getId(),
+                artist.getName(),
+                artist.getImg(),
+                artist.getUsername(),
+                artist.getTrackTotal(),
+                artist.getAlbumTotal()
+        );
+    }
+
     @Override
     @Transactional(readOnly = true)
-    public List<Artist> getAllArtists() {
-        return artistRepository.findAll();
+    public List<ArtistResponseDTO> getAllArtists() {
+        return artistRepository.findAll().stream()
+                .map(this::toResponseDto)
+                .toList();
     }
 
     @Override
