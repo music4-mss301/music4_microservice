@@ -3,6 +3,7 @@ package vn.edu.fpt.sba.music4.controllers;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,8 @@ import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.services.ITrackService;
 import vn.edu.fpt.sba.music4.services.impl.TrackServiceImpl;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -149,6 +152,54 @@ public class TrackController {
     public ResponseEntity<String> deleteTrack(
             @Parameter(description = "ID bài hát cần xóa", example = "1") @PathVariable Integer id) {
         trackService.deleteTrack(id);
-        return ResponseEntity.ok("Xóa bài hát có "+ id +" thành công!");
+        return ResponseEntity.ok("Xóa bài hát có " + id + " thành công!");
+    }
+
+    // ok
+    @GetMapping("/stream/{id}")
+    @Operation(summary = "Stream nhạc trực tuyến (Hỗ trợ tua)", description = "Trả về luồng byte âm thanh (HTTP 206). Hỗ trợ nhận Header Range từ client để tua nhạc.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "206", description = "Đang stream phân đoạn âm thanh (Partial Content)"),
+            @ApiResponse(responseCode = "404", description = "Không tìm thấy bài hát")
+    })
+    public ResponseEntity<StreamingResponseBody> streamTrack(
+            @Parameter(description = "ID bài hát cần stream", example = "1") @PathVariable Integer id,
+            @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
+        // 1. Lấy thông tin bài hát từ DB
+        TrackDetailResponseDTO track = trackService.getTrackById(id);
+        // Lưu ý: Dùng track.filePath() thay vì track.getFilePath() vì DTO là Java Record
+        String s3Key = track.filePath();
+        if (s3Key == null || s3Key.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        // 2. Gọi sang AWSUtil để xử lý lấy luồng byte từ S3
+        return awsUtil.streamAudioFile(s3Key, rangeHeader);
+    }
+
+    // ok
+    @GetMapping("/stream/preview/{id}")
+    @Operation(summary = "Nghe thử 30s (Guest)", description = "Stream một đoạn nhạc giới hạn dung lượng đầu tiên, đánh lừa trình duyệt đây là toàn bộ bài hát.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "206", description = "Đang stream phân đoạn âm thanh Preview"),
+            @ApiResponse(responseCode = "404", description = "Không tìm thấy bài hát")
+    })
+    public ResponseEntity<StreamingResponseBody> streamPreviewTrack(
+            @Parameter(description = "ID bài hát cần stream", example = "1") @PathVariable Integer id,
+            @RequestHeader(value = HttpHeaders.RANGE, required = false) String rangeHeader) {
+
+        // 1. Lấy thông tin bài hát từ DB
+        TrackDetailResponseDTO track = trackService.getTrackById(id);
+
+        // 2. Ưu tiên lấy previewPath (Mặc dù hiện tại nó đang giống filePath, nhưng chuẩn logic là vậy)
+        String rawPath = track.previewPath();
+
+        if (rawPath == null || rawPath.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+
+        String s3Key = awsUtil.extractKeyFromUrl(rawPath);
+
+        // 3. Gọi sang AWSUtil xử lý luồng Preview (Cách ly với luồng nghe Full)
+        return awsUtil.streamPreviewAudioFile(s3Key, rangeHeader);
     }
 }
