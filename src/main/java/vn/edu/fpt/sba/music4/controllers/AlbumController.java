@@ -4,8 +4,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.fpt.sba.music4.dtos.response.AlbumCreateDTO;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.services.IAlbumService;
 
@@ -29,11 +33,11 @@ public class AlbumController {
         return ResponseEntity.ok(albumService.getAlbumsByArtist(artistId));
     }
 
-    @PostMapping
-    @Operation(summary = "Tạo Album mới", description = "Tạo một album trống cho nghệ sĩ trước khi upload bài hát")
-    @ApiResponse(responseCode = "200", description = "Tạo album thành công")
-    public ResponseEntity<Album> createAlbum(@RequestBody Album album) {
-        return ResponseEntity.ok(albumService.createAlbum(album));
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // Định nghĩa API này nhận form-data
+    @Operation(summary = "Tạo Album mới", description = "Tạo một album kèm ảnh bìa cho nghệ sĩ")
+    @ApiResponse(responseCode = "201", description = "Tạo album thành công")
+    public ResponseEntity<Album> createAlbum(@Valid @ModelAttribute AlbumCreateDTO album) { // 🔥 ĐỔI THÀNH @ModelAttribute
+        return new ResponseEntity<>(albumService.createAlbum(album), HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{id}")

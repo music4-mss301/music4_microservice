@@ -6,4 +6,5 @@ import vn.edu.fpt.sba.music4.entities.TrackCategory;
 
 @Repository
 public interface TrackCategoryRepository extends JpaRepository<TrackCategory, Integer> {
+    long countByCategoryId(Integer id);
 }
