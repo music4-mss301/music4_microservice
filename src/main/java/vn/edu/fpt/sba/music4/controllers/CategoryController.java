@@ -4,10 +4,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import vn.edu.fpt.sba.music4.dtos.response.CategoryDetailResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Category;
+import vn.edu.fpt.sba.music4.exceptions.BusinessException;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
 
 import java.util.List;
@@ -22,44 +25,53 @@ public class CategoryController {
         this.categoryService = categoryService;
     }
 
-    @GetMapping
+    // ok
+    @GetMapping("")
     @Operation(summary = "Lấy toàn bộ danh sách thể loại nhạc", description = "Trả về tất cả thể loại có trong hệ thống để đưa vào form chọn")
     @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công")
     public ResponseEntity<List<CategoryResponseDTO>> getAllCategories() {
         return ResponseEntity.ok(categoryService.getAllCategories());
     }
 
+    // ok
     @GetMapping("/{id}")
-    @Operation(summary = "Tìm thể loại theo ID", description = "Trả về chi tiết một thể loại")
+    @Operation(summary = "Tìm thể loại theo ID", description = "Trả về chi tiết một thể loại bao gồm các bài hát thuộc thể loại đó")
     @ApiResponse(responseCode = "200", description = "Tìm thấy thành công")
-    public ResponseEntity<Category> getCategoryById(
+    public ResponseEntity<CategoryDetailResponseDTO> getCategoryById(
             @Parameter(description = "ID của thể loại", example = "1") @PathVariable Integer id) {
         return ResponseEntity.ok(categoryService.getCategoryById(id));
     }
 
-    @PostMapping
+    // ok
+    @PostMapping("")
     @Operation(summary = "Thêm mới một thể loại nhạc", description = "Tạo một dòng thể loại mới (Admin)")
     @ApiResponse(responseCode = "200", description = "Thêm mới thành công")
     public ResponseEntity<Category> createCategory(@RequestBody Category category) {
         return ResponseEntity.ok(categoryService.createCategory(category));
     }
 
+    // ok
     @PutMapping("/{id}")
     @Operation(summary = "Cập nhật tên thể loại", description = "Chỉnh sửa tên hiển thị của thể loại nhạc")
     @ApiResponse(responseCode = "200", description = "Cập nhật thành công")
-    public ResponseEntity<Category> updateCategory(
+    public ResponseEntity<CategoryResponseDTO> updateCategory(
             @Parameter(description = "ID của thể loại cần sửa", example = "1") @PathVariable Integer id,
             @RequestBody Category categoryDetails) {
         return ResponseEntity.ok(categoryService.updateCategory(id, categoryDetails));
     }
 
+    // ok
     @DeleteMapping("/{id}")
     @Operation(summary = "Xóa thể loại nhạc", description = "Xóa thể loại nhạc khỏi cơ sở dữ liệu")
     @ApiResponse(responseCode = "200", description = "Xóa thành công")
     public ResponseEntity<String> deleteCategory(
             @Parameter(description = "ID của thể loại cần xóa", example = "1") @PathVariable Integer id) {
-        categoryService.deleteCategory(id);
-        return ResponseEntity.ok("Xóa thể loại thành công!");
+        try {
+            categoryService.deleteCategory(id);
+            return ResponseEntity.ok("Xóa thể loại thành công!");
+        } catch (BusinessException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
 }

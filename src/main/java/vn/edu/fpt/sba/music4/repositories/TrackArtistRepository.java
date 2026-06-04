@@ -6,4 +6,5 @@ import vn.edu.fpt.sba.music4.entities.TrackArtist;
 
 @Repository
 public interface TrackArtistRepository extends JpaRepository<TrackArtist, Integer> {
+    long countByArtistId(Integer artistId);
 }
