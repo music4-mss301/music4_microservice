@@ -2,6 +2,7 @@ package vn.edu.fpt.sba.music4.services;
 
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.TrackUploadDTO;
+import vn.edu.fpt.sba.music4.dtos.response.AlbumBulkJsonDTO;
 import vn.edu.fpt.sba.music4.dtos.response.TrackDetailResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Track;
@@ -19,4 +20,6 @@ public interface ITrackService {
     // Luồng chỉnh sửa và xóa metadata bài hát[cite: 6]
     TrackDetailResponseDTO updateTrackMetadata(Integer id, TrackUploadDTO dto);
     void deleteTrack(Integer id);
+    Integer getAudioDurationInSeconds(MultipartFile audioFile);
+    void saveBulkTracksJson(AlbumBulkJsonDTO dto);
 }

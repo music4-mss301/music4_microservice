@@ -26,5 +26,5 @@ public interface AlbumRepository extends JpaRepository<Album, Integer> {
                     "OR (REPLACE(LOWER(ar.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%')",
             nativeQuery = true)
     Page<Album> searchByName(@Param("keyword") String keyword, Pageable pageable);
-
+    int countByArtistId(Integer artistId);
 }

@@ -26,4 +26,6 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     List<IChartData> countViewsByArtistPerDay(@Param("artistId") Integer artistId);
 
     Optional<History> findTopByUserIdAndTrackIdOrderByListenedAtDesc(Integer userId, Integer trackId);
+
+    List<History> findByUserId(Integer userId);
 }

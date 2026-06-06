@@ -105,6 +105,11 @@
             <artifactId>s3</artifactId>
             <version>2.25.11</version>
         </dependency>
+        <dependency>
+            <groupId>com.mpatric</groupId>
+            <artifactId>mp3agic</artifactId>
+            <version>0.9.1</version>
+        </dependency>
 
         <!-- Spring mail -->
         <dependency>
