@@ -22,4 +22,5 @@ public interface ITrackService {
     void deleteTrack(Integer id);
     Integer getAudioDurationInSeconds(MultipartFile audioFile);
     void saveBulkTracksJson(AlbumBulkJsonDTO dto);
+    List<TrackResponseDTO> getTop5MostViewedTracks();
 }

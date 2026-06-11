@@ -41,7 +41,7 @@ public class Track {
     private Integer viewCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "album_id")
+    @JoinColumn(name = "album_id", nullable = true)
     @JsonIgnore
     private Album album;
 

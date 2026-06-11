@@ -36,4 +36,5 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
     Page<Track> searchByName(@Param("keyword") String keyword, Pageable pageable);
     List<Track> findByAlbumId(Integer albumId);
     int countByAlbumId(Integer albumId);
+    List<Track> findTop5ByOrderByViewCountDesc();
 }
