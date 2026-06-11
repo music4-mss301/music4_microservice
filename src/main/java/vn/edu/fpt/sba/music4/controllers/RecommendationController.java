@@ -37,7 +37,6 @@ public class RecommendationController {
     @PostMapping("/sync")
     @Operation(summary = "Đồng bộ nhạc lên ES (Chạy ngầm)", description = "Lấy toàn bộ nhạc trong SQL -> Dịch sang Vector -> Đẩy vào Elasticsearch. API này không block (không treo), trả về phản hồi ngay lập tức.")
     public ResponseEntity<String> syncDataToElasticsearch() {
-        // Có thể dùng @Async để không bị block request, nhưng làm demo thì cứ để chạy thẳng
         recommendationService.syncTracksToElasticsearch();
         return ResponseEntity.accepted().body("Tiến trình đồng bộ Vector đang được chạy ngầm. Vui lòng kiểm tra màn hình console (log) của hệ thống để xem tiến độ!");
     }
