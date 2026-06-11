@@ -15,7 +15,7 @@ import java.util.Date;
 @Service
 public class JwtUtil {
     @Value("${JWT_SECRET_KEY}") private String secret;
-    @Value("${JWT_ACCESS_EXPIRES_IN}") private long expMs;
+    private final long expMs = 1000L * 60 * 60 * 24 * 7;
 
     private SecretKey key() {
         return Keys.hmacShaKeyFor(Decoders.BASE64.decode(secret));

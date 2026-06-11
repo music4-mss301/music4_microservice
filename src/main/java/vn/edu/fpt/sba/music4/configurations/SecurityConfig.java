@@ -19,10 +19,15 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.multipart.MultipartResolver;
 import org.springframework.web.multipart.support.StandardServletMultipartResolver;
 import vn.edu.fpt.sba.music4.filters.JwtAuthFilter;
 import vn.edu.fpt.sba.music4.services.impl.CustomUserDetailsServiceImpl;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -33,6 +38,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
@@ -81,5 +87,26 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
 //        return NoOpPasswordEncoder.getInstance();//Test ko endcode
         return new BCryptPasswordEncoder();
+    }
+    // 🟢 CHÈN THÊM ĐOẠN BEAN CẤU HÌNH NÀY VÀO TRONG CLASS SECURITYCONFIG
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Cấu hình tường lửa cho phép duy nhất cổng 5173 của ReactJS kết nối
+        configuration.setAllowedOrigins(List.of("http://localhost:5173"));
+
+        // Cho phép đầy đủ các phương thức RESTful API phổ biến
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // Chấp nhận các tiêu đề thông tin bắt buộc gồm chuỗi Token mã hóa Bearer
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
+
+        // Cho phép gửi kèm cookie định danh nếu hệ thống sau này cần mở rộng
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration); // Áp dụng đồng loạt cho toàn bộ hệ thống API
+        return source;
     }
 }
