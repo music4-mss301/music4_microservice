@@ -449,11 +449,10 @@ public class TrackServiceImpl implements ITrackService {
         return this.toDetailResponseDto(savedTrack);
     }
 
-    // 💡 Hàm hỗ trợ 1: Chuyển đổi từ Track sang TrackDetailResponseDTO (Full thông tin chi tiết)
     public TrackDetailResponseDTO toDetailResponseDto(Track track) {
         if (track == null) return null;
 
-        // 1. Ánh xạ Album (Trả về null nếu là bài hát Single không thuộc album nào)
+        // 1. Ánh xạ Album
         AlbumResponseDTO albumDTO = null;
         if (track.getAlbum() != null) {
             albumDTO = new AlbumResponseDTO(
@@ -466,18 +465,22 @@ public class TrackServiceImpl implements ITrackService {
             );
         }
 
-        // 2. Ánh xạ danh sách Artists từ bảng trung gian TrackArtist
+        // 2. 🟢 SỬA LẠI ĐOẠN NÀY: Truy vấn trực tiếp từ Repository để triệt tiêu lỗi Cache Hibernate
         java.util.List<TrackArtistInfo> artistList = java.util.List.of();
-        if (track.getTrackArtists() != null) {
-            artistList = track.getTrackArtists().stream()
+
+        // Gọi Repo bốc trực tiếp dữ liệu thực tế dưới DB lên thay vì dùng track.getTrackArtists()
+        List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackId(track.getId());
+
+        if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
+            artistList = dbTrackArtists.stream()
                     .map(ta -> new TrackArtistInfo(
                             ta.getArtist().getId(),
                             ta.getArtist().getName(),
-                            ta.getRole() // Lấy vai trò MAIN hoặc FEAT từ bảng trung gian
+                            ta.getRole()
                     )).toList();
         }
 
-        // 3. Ánh xạ danh sách Categories từ bảng trung gian TrackCategory
+        // 3. Ánh xạ danh sách Categories
         java.util.List<CategoryResponseDTO> categoryList = java.util.List.of();
         if (track.getTrackCategories() != null) {
             categoryList = track.getTrackCategories().stream()
