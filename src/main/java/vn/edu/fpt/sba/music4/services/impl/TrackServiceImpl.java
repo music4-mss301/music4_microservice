@@ -300,10 +300,11 @@ public class TrackServiceImpl implements ITrackService {
         );
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public List<TrackResponseDTO> getAllTrack() {
+    public List<TrackDetailResponseDTO> getAllTrack() {
         return trackRepository.findAll().stream()
-                .map(this::toResponseDto)
+                .map(this::toDetailResponseDto)
                 .toList();
     }
 
@@ -617,24 +618,15 @@ public class TrackServiceImpl implements ITrackService {
         }
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public List<TrackResponseDTO> getTop5MostViewedTracks() {
+    public List<TrackDetailResponseDTO> getTop5MostViewedTracks() {
         // 1. Gọi Repo lấy 5 bài hát view cao nhất
         List<Track> topTracks = trackRepository.findTop5ByOrderByViewCountDesc();
 
         // 2. Chuyển đổi List<Track> sang List<TrackResponseDTO>
         return topTracks.stream()
-                .map(track -> new TrackResponseDTO(
-                        track.getId(),
-                        track.getName(),
-                        track.getImg(),
-                        track.getDuration(),
-                        track.getFilePath(),
-                        track.getPreviewPath(),
-                        track.getViewCount(),
-                        track.getUploadDate()
-
-                ))
-                .collect(Collectors.toList());
+                .map(this::toDetailResponseDto)
+                .toList();
     }
 }
