@@ -11,4 +11,5 @@ public interface IAlbumService {
     List<AlbumResponseDTO> getAlbumsByArtist(Integer artistId);
     void deleteAlbum(Integer id);
     Album createAlbum(AlbumCreateDTO dto);
+    List<AlbumResponseDTO> findAll();
 }

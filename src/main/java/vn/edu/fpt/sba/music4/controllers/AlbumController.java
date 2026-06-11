@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.response.AlbumCreateDTO;
 import vn.edu.fpt.sba.music4.dtos.response.AlbumResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.services.IAlbumService;
 
@@ -24,6 +25,13 @@ public class AlbumController {
 
     public AlbumController(IAlbumService albumService) {
         this.albumService = albumService;
+    }
+
+    // ok
+    @GetMapping("")
+    @Operation(summary = "Lấy danh sách Album", description = "Hiển thị toàn bộ album có trong hệ thống")
+    public ResponseEntity<List<AlbumResponseDTO>> getAllAlbums() {
+        return ResponseEntity.ok(albumService.findAll());
     }
 
     // ok

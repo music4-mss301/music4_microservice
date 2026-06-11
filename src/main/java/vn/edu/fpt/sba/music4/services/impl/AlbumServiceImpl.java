@@ -81,6 +81,26 @@ public class AlbumServiceImpl implements IAlbumService {
         return savedAlbum;
     }
 
+    public AlbumResponseDTO toResponseDto(Album album) {
+        if (album == null) return null;
+
+        return new AlbumResponseDTO(
+                album.getId(),
+                album.getName(),
+                album.getImg(),
+                album.getUploadDate(),
+                album.getTrackTotal(),
+                album.getArtist().getId()
+        );
+    }
+
+    @Override
+    public List<AlbumResponseDTO> findAll() {
+        return albumRepository.findAll().stream()
+                .map(this::toResponseDto)
+                .toList();
+    }
+
     // ok
     @Override
     @Transactional(rollbackFor = Exception.class)
