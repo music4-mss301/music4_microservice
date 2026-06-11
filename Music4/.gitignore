@@ -31,5 +31,29 @@ build/
 
 ### VS Code ###
 .vscode/
+
 ### Environment Variable ###
 .env
+.env.*
+!.env.example
+
+# --- Spring Boot configs ---
+application-dev.properties
+application-prod.properties
+application-secret.properties
+datasource.properties
+
+# local overrides
+*.properties.local
+*.yml.local
+*.yaml.local
+
+# --- Database ---
+*.db
+*.sqlite
+*.sqlite3
+*.h2.db
+
+# --- OS ---
+.DS_Store
+Thumbs.db
