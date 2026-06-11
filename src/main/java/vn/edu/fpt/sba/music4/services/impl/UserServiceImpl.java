@@ -6,23 +6,29 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
+import vn.edu.fpt.sba.music4.dtos.request.UserRequest;
 import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.enums.ERole;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.IUserService;
+import vn.edu.fpt.sba.music4.util.AWSUtil;
 
+import java.io.IOException;
 import java.util.Optional;
 
 @Service
 public class UserServiceImpl implements IUserService, UserDetailsService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
+    private final AWSUtil aWSUtil;
 
-    public UserServiceImpl(UserRepository userRepository, ArtistRepository artistRepository) {
+    public UserServiceImpl(UserRepository userRepository, ArtistRepository artistRepository, AWSUtil aWSUtil) {
         this.userRepository = userRepository;
         this.artistRepository = artistRepository;
+        this.aWSUtil = aWSUtil;
     }
 
     @Override
@@ -58,5 +64,31 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
                 registrationRequest.username(),
                 hashedPassword,
                 ERole.LISTENER.name()));
+    }
+
+    @Override
+    public User update(Integer id, UserRequest userRequest) {
+        User user = this.userRepository.findById(id).map((u) -> {
+                    if(userRequest.name() != null && !userRequest.name().isBlank()) {
+                        u.setName(userRequest.name());
+                    }
+
+                    if(userRequest.gender() != null){
+                        u.setGender(userRequest.gender());
+                    }
+                    MultipartFile file = userRequest.img();
+
+                    if (file != null && !file.isEmpty()) {
+                        try {
+                            String s3Key = aWSUtil.uploadFile(file, "avatars");
+                            u.setImg(s3Key);
+                        } catch (IOException e) {
+                            throw new RuntimeException("Upload image failed", e);
+                        }
+                    }
+                    return this.userRepository.save(u);
+                })
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+        return user;
     }
 }

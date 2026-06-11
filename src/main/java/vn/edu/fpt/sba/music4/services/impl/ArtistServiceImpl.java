@@ -6,23 +6,28 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.response.ArtistResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.IArtistService;
+import vn.edu.fpt.sba.music4.util.AWSUtil;
 
+import java.io.IOException;
 import java.util.List;
 
 @Service
 public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
+    private final AWSUtil aWSUtil;
 
-    public ArtistServiceImpl(ArtistRepository artistRepository, UserRepository userRepository) {
-        this.artistRepository = artistRepository;
+    public ArtistServiceImpl(UserRepository userRepository, ArtistRepository artistRepository, AWSUtil aWSUtil) {
         this.userRepository = userRepository;
+        this.artistRepository = artistRepository;
+        this.aWSUtil = aWSUtil;
     }
 
     @Override
@@ -30,6 +35,7 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
         return this.artistRepository.findByUserName(username)
                 .orElseThrow(() -> new UsernameNotFoundException(username + " not found"));
     }
+
     @Override
     @Transactional(readOnly = true)
     public Artist getArtistById(Integer id) {
@@ -61,6 +67,20 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     @Override
     @Transactional
     public Artist save(RegistrationRequest registrationRequest) {
+        Artist artist = new Artist();
+        MultipartFile file = registrationRequest.img();
+
+        if (file != null && !file.isEmpty()) {
+            try {
+                String s3Key = aWSUtil.uploadFile(file, "avatars");
+                artist.setImg(s3Key);
+            } catch (IOException e) {
+                throw new RuntimeException("Upload image failed", e);
+            }
+        } else {
+            artist.setImg(null); // or set a default image key if you have one
+        }
+
         // basic validation
         if (registrationRequest.username() == null || registrationRequest.username().isBlank()) {
             throw new IllegalArgumentException("Username is required");
@@ -80,9 +100,8 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
         // hash password
         String hashedPassword = BCrypt.hashpw(registrationRequest.password(), BCrypt.gensalt());
 
-        Artist artist = new Artist();
         artist.setName(registrationRequest.name() == null ? "Unknown Artist" : registrationRequest.name());
-        artist.setImg("null"); // or null
+
         artist.setEmail(registrationRequest.email());
         artist.setPassword(hashedPassword);
         artist.setUserName(registrationRequest.username());
