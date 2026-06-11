@@ -14,6 +14,7 @@ import vn.edu.fpt.sba.music4.util.AWSUtil;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class TrackServiceImpl implements ITrackService {
@@ -614,5 +615,26 @@ public class TrackServiceImpl implements ITrackService {
             // Lưu lại thông tin Album mới
             albumRepository.save(targetAlbum);
         }
+    }
+
+    @Override
+    public List<TrackResponseDTO> getTop5MostViewedTracks() {
+        // 1. Gọi Repo lấy 5 bài hát view cao nhất
+        List<Track> topTracks = trackRepository.findTop5ByOrderByViewCountDesc();
+
+        // 2. Chuyển đổi List<Track> sang List<TrackResponseDTO>
+        return topTracks.stream()
+                .map(track -> new TrackResponseDTO(
+                        track.getId(),
+                        track.getName(),
+                        track.getImg(),
+                        track.getDuration(),
+                        track.getFilePath(),
+                        track.getPreviewPath(),
+                        track.getViewCount(),
+                        track.getUploadDate()
+
+                ))
+                .collect(Collectors.toList());
     }
 }
