@@ -16,11 +16,11 @@ public interface ITrackService {
     // Luồng tìm kiếm/hiển thị phục vụ quản lý của Thành viên 5
     TrackDetailResponseDTO getTrackById(Integer id);
     List<TrackResponseDTO> getTracksByAlbumId(Integer albumId);
-    List<TrackResponseDTO> getAllTrack();
+    List<TrackDetailResponseDTO> getAllTrack();
     // Luồng chỉnh sửa và xóa metadata bài hát[cite: 6]
     TrackDetailResponseDTO updateTrackMetadata(Integer id, TrackUploadDTO dto);
     void deleteTrack(Integer id);
     Integer getAudioDurationInSeconds(MultipartFile audioFile);
     void saveBulkTracksJson(AlbumBulkJsonDTO dto);
-    List<TrackResponseDTO> getTop5MostViewedTracks();
+    List<TrackDetailResponseDTO> getTop5MostViewedTracks();
 }
