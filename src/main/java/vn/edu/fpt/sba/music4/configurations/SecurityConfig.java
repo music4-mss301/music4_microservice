@@ -43,24 +43,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(
                         auth -> auth
-//                                .requestMatchers("/api/auth/**", "/test", "/api/albums/**").permitAll()
                                 .requestMatchers("/api/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**", "/error").permitAll()
                                 .anyRequest().authenticated())
                 .authenticationProvider(authProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .exceptionHandling(exception -> exception
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            System.out.println("--- 403 FORBIDDEN AT URL: " + request.getRequestURI());
-                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null) {
-                                System.out.println("Logged User: " + auth.getName());
-                                System.out.println("Current role in text: " + auth.getAuthorities());
-                            } else {
-                                System.out.println("No user in Context (Auth null)!");
-                            }
-                            response.sendError(403, "Forbidden");
-                        })
-                )
                 .build();
     }
 
@@ -85,10 +71,9 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-//        return NoOpPasswordEncoder.getInstance();//Test ko endcode
         return new BCryptPasswordEncoder();
     }
-    // 🟢 CHÈN THÊM ĐOẠN BEAN CẤU HÌNH NÀY VÀO TRONG CLASS SECURITYCONFIG
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
