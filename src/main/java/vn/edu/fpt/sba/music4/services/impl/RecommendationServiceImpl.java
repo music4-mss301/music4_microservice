@@ -2,10 +2,16 @@ package vn.edu.fpt.sba.music4.services.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 import vn.edu.fpt.sba.music4.dtos.response.TrackSuggestResponse;
-import vn.edu.fpt.sba.music4.entities.Rating;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.repositories.FavoriteRepository;
 import vn.edu.fpt.sba.music4.repositories.HistoryRepository;
@@ -26,122 +32,148 @@ public class RecommendationServiceImpl implements IRecommendationService {
     private final FavoriteRepository favoriteRepository;
     private final HistoryRepository historyRepository;
 
+    private final RestTemplate restTemplate;
+
+    // Các cổng kết nối Microservices
+    private final String PYTHON_EMBED_URL = "http://127.0.0.1:8000/api/ai/embed";
+    private final String ES_INDEX_URL = "http://127.0.0.1:9200/music_tracks/_doc/";
+    private final String ES_SEARCH_URL = "http://127.0.0.1:9200/music_tracks/_knn_search";
+
+    // === HÀM LẤY GỢI Ý BÀI HÁT ===
     @Override
+    @Transactional(readOnly = true)
     public List<TrackSuggestResponse> getRecommendations(Integer userId) {
         // 1. Dành cho Guest (Chưa đăng nhập): Chỉ trả về Trending Tracks
         if (userId == null) {
             return getTrendingFallback();
         }
 
-        // ==========================================
-        // PHASE 1: TẠO HỒ SƠ GU ÂM NHẠC (TASTE PROFILE)
-        // ==========================================
-        Set<Integer> likedTrackIds = new HashSet<>();
+        try {
+            // 1. LẤY GU ÂM NHẠC CỦA USER
+            Set<Integer> likedTrackIds = new HashSet<>();
+            historyRepository.findByUserId(userId).forEach(h -> likedTrackIds.add(h.getTrack().getId()));
+            favoriteRepository.findByUserId(userId).forEach(f -> likedTrackIds.add(f.getTrack().getId()));
+            ratingRepository.findByUserId(userId).stream()
+                    .filter(r -> r.getRatingValue() >= 4).forEach(r -> likedTrackIds.add(r.getTrack().getId()));
 
-        // A. Lấy bài hát đã đánh giá >= 4 sao
-        ratingRepository.findByUserId(userId).stream()
-                .filter(r -> r.getRatingValue() >= 4)
-                .forEach(r -> likedTrackIds.add(r.getTrack().getId()));
+            if (likedTrackIds.isEmpty()) return getTrendingFallback();
 
-        // B. Lấy bài hát đã thả tim (Favorites)
-        favoriteRepository.findByUserId(userId)
-                .forEach(f -> likedTrackIds.add(f.getTrack().getId()));
+            List<Track> likedTracks = trackRepository.findAllById(likedTrackIds);
 
-        // C. Lấy bài hát trong Lịch sử nghe (History)
-        historyRepository.findByUserId(userId)
-                .forEach(h -> likedTrackIds.add(h.getTrack().getId()));
+            // Gom text của tất cả bài user thích để tạo thành 1 đoạn văn "Mô tả Gu"
+            StringBuilder tasteProfileBuilder = new StringBuilder();
+            for (Track t : likedTracks) {
+                tasteProfileBuilder.append(t.getName()).append(" ");
+                t.getTrackCategories().forEach(tc -> tasteProfileBuilder.append(tc.getCategory().getName()).append(" "));
+                t.getTrackArtists().forEach(ta -> tasteProfileBuilder.append(ta.getArtist().getName()).append(" "));
+            }
 
-        // Nếu User hoàn toàn mới (chưa có data), trả về Trending
-        if (likedTrackIds.isEmpty()) {
+            // 2. NHỜ PYTHON DỊCH "ĐOẠN VĂN GU" THÀNH VECTOR
+            Map<String, String> pythonRequest = new HashMap<>();
+            pythonRequest.put("text", tasteProfileBuilder.toString());
+
+            Map<String, Object> pythonResponse = restTemplate.postForObject(PYTHON_EMBED_URL, pythonRequest, Map.class);
+            List<Double> userTasteVector = (List<Double>) pythonResponse.get("vector");
+
+            // 3. ĐEM VECTOR ĐÓ SANG ELASTICSEARCH ĐỂ K-NN SEARCH
+            Map<String, Object> knnQuery = new HashMap<>();
+            Map<String, Object> knnParams = new HashMap<>();
+            knnParams.put("field", "vector_data");
+            knnParams.put("query_vector", userTasteVector);
+            knnParams.put("k", 15);
+            knnParams.put("num_candidates", 100);
+            knnQuery.put("knn", knnParams);
+            knnQuery.put("_source", Collections.singletonList("track_id"));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<Map<String, Object>> esEntity = new HttpEntity<>(knnQuery, headers);
+
+            ResponseEntity<Map> esResponse = restTemplate.exchange(ES_SEARCH_URL, HttpMethod.POST, esEntity, Map.class);
+
+            // 4. BÓC TÁCH KẾT QUẢ TỪ ES
+            Map<String, Object> hitsObj = (Map<String, Object>) esResponse.getBody().get("hits");
+            List<Map<String, Object>> hitsList = (List<Map<String, Object>>) hitsObj.get("hits");
+
+            List<Integer> recommendedTrackIds = new ArrayList<>();
+            Map<Integer, Double> scoreMap = new HashMap<>();
+
+            for (Map<String, Object> hit : hitsList) {
+                Map<String, Object> source = (Map<String, Object>) hit.get("_source");
+                Integer trackId = (Integer) source.get("track_id");
+
+                // Lọc bỏ bài đã nghe
+                if (!likedTrackIds.contains(trackId)) {
+                    Double score = (Double) hit.get("_score");
+                    recommendedTrackIds.add(trackId);
+                    scoreMap.put(trackId, score);
+                }
+            }
+
+            // Map với SQL Server và trả về
+            List<Track> finalTracks = trackRepository.findAllById(recommendedTrackIds);
+            return finalTracks.stream()
+                    .map(track -> new TrackSuggestResponse(
+                            track.getId(), track.getName(), track.getImg(), track.getDuration(),
+                            track.getPreviewPath(), track.getViewCount(),
+                            Math.round(scoreMap.getOrDefault(track.getId(), 0.0) * 100.0) / 100.0
+                    ))
+                    .sorted((t1, t2) -> Double.compare(t2.matchScore(), t1.matchScore()))
+                    .limit(10)
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("Lỗi hệ thống AI: {}", e.getMessage());
             return getTrendingFallback();
         }
-
-        // Từ danh sách bài hát yêu thích, rút trích ra ID Thể loại và ID Ca sĩ họ hay nghe
-        Set<Integer> favoriteCategoryIds = new HashSet<>();
-        Set<Integer> favoriteArtistIds = new HashSet<>();
-        List<Track> likedTracks = trackRepository.findAllById(likedTrackIds);
-
-        for (Track t : likedTracks) {
-            t.getTrackCategories().forEach(tc -> favoriteCategoryIds.add(tc.getCategory().getId()));
-            t.getTrackArtists().forEach(ta -> favoriteArtistIds.add(ta.getArtist().getId()));
-        }
-
-        // ==========================================
-        // PHASE 2: CHẤM ĐIỂM AI (SCORING)
-        // ==========================================
-        List<Track> allTracks = trackRepository.findAll();
-        List<TrackSuggestResponse> recommendations = new ArrayList<>();
-
-        // Tìm số lượt view cao nhất để chuẩn hóa (Normalize) điểm Trending
-        int maxViews = allTracks.stream().mapToInt(Track::getViewCount).max().orElse(1);
-
-        for (Track track : allTracks) {
-            double aiScore = 0.0;
-
-            // Tiêu chí 1: Trùng Thể loại (Gu)
-            boolean matchCategory = track.getTrackCategories().stream()
-                    .anyMatch(tc -> favoriteCategoryIds.contains(tc.getCategory().getId()));
-            if (matchCategory) aiScore += 3.0;
-
-            // Tiêu chí 2: Trùng Ca sĩ (Gu)
-            boolean matchArtist = track.getTrackArtists().stream()
-                    .anyMatch(ta -> favoriteArtistIds.contains(ta.getArtist().getId()));
-            if (matchArtist) aiScore += 4.0;
-
-            // Tiêu chí 3: Trọng số phổ biến (Bài càng hot càng dễ được gợi ý)
-            double viewBonus = ((double) track.getViewCount() / maxViews) * 2.0;
-            aiScore += viewBonus;
-
-            // Tiêu chí 4: Hệ thống Phạt (Penalty)
-            // Nếu User từng ghét bài này (Rate 1-2 sao), trừ điểm cực mạnh
-            Optional<Rating> userRating = ratingRepository.findByUserIdAndTrackId(userId, track.getId());
-            if (userRating.isPresent() && userRating.get().getRatingValue() <= 2) {
-                aiScore -= 10.0;
-            }
-
-            // Tiêu chí 5: Tránh gợi ý lại bài vừa nghe quá nhiều (Tùy chọn)
-            // Nếu bài này đã nằm trong History/Favorites thì điểm giảm đi 1 chút để nhường chỗ cho bài mới
-            if (likedTrackIds.contains(track.getId())) {
-                aiScore -= 1.0;
-            }
-
-            // ==========================================
-            // PHASE 3: ĐÓNG GÓI KẾT QUẢ
-            // ==========================================
-            // Lấy những bài có điểm AI > 1.0 (Nghĩa là có liên quan đến Gu)
-            if (aiScore > 1.0) {
-                recommendations.add(new TrackSuggestResponse(
-                        track.getId(),
-                        track.getName(),
-                        track.getImg(),
-                        track.getDuration(),
-                        track.getPreviewPath(),
-                        track.getViewCount(),
-                        Math.round(aiScore * 10.0) / 10.0 // Làm tròn 1 chữ số thập phân
-                ));
-            }
-        }
-
-        // Xếp hạng: Sắp xếp giảm dần theo điểm AI (Thằng nào điểm cao nhất nổi lên đầu)
-        recommendations.sort((t1, t2) -> Double.compare(t2.matchScore(), t1.matchScore()));
-
-        // Trả về Top 10 bài xuất sắc nhất
-        return recommendations.stream().limit(10).collect(Collectors.toList());
     }
 
-    // Hàm dự phòng (Fallback) khi User không có data
     private List<TrackSuggestResponse> getTrendingFallback() {
         return trackRepository.findAll().stream()
                 .sorted((t1, t2) -> Integer.compare(t2.getViewCount(), t1.getViewCount()))
                 .limit(10)
-                .map(track -> new TrackSuggestResponse(
-                        track.getId(),
-                        track.getName(),
-                        track.getImg(),
-                        track.getDuration(),
-                        track.getPreviewPath(),
-                        track.getViewCount(),
-                        99.9 // Điểm ảo định danh đây là nhạc Trending
-                )).collect(Collectors.toList());
+                .map(track -> new TrackSuggestResponse(track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getPreviewPath(), track.getViewCount(), 99.9))
+                .collect(Collectors.toList());
+    }
+
+    // === HÀM ĐỒNG BỘ DỮ LIỆU TỪ SQL LÊN ELASTICSEARCH ===
+    @Async
+    @Transactional
+    @Override
+    public void syncTracksToElasticsearch() {
+        List<Track> allTracks = trackRepository.findAll();
+        log.info("Bắt đầu đồng bộ {} bài hát lên Elasticsearch...", allTracks.size());
+
+        for (Track track : allTracks) {
+            try {
+                // 1. Gom Text mô tả bài hát
+                StringBuilder textBuilder = new StringBuilder(track.getName() + " ");
+                track.getTrackCategories().forEach(tc -> textBuilder.append(tc.getCategory().getName()).append(" "));
+                track.getTrackArtists().forEach(ta -> textBuilder.append(ta.getArtist().getName()).append(" "));
+
+                // 2. Nhờ Python dịch sang Vector
+                Map<String, String> pythonRequest = new HashMap<>();
+                pythonRequest.put("text", textBuilder.toString());
+                Map<String, Object> pythonResponse = restTemplate.postForObject(PYTHON_EMBED_URL, pythonRequest, Map.class);
+                List<Double> vector = (List<Double>) pythonResponse.get("vector");
+
+                // 3. Đẩy vào Elasticsearch lưu trữ
+                Map<String, Object> esDoc = new HashMap<>();
+                esDoc.put("track_id", track.getId());
+                esDoc.put("vector_data", vector);
+
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                HttpEntity<Map<String, Object>> entity = new HttpEntity<>(esDoc, headers);
+
+                // Dùng phương thức PUT để insert/update dựa trên ID bài hát
+                restTemplate.exchange(ES_INDEX_URL + track.getId(), HttpMethod.PUT, entity, Map.class);
+                log.info("Đã đồng bộ thành công bài hát ID: {}", track.getId());
+
+            } catch (Exception e) {
+                log.error("Lỗi đồng bộ bài hát ID {}: {}", track.getId(), e.getMessage());
+            }
+        }
+        log.info("Hoàn tất quá trình đồng bộ!");
     }
 }

@@ -42,7 +42,7 @@ public class TrackController {
     // ok
     @GetMapping("")
     @Operation(summary = "Lấy tất cả bài hát", description = "Trả về toàn bộ danh sách các bài hát")
-    public List<TrackResponseDTO> getAllTrack() {
+    public List<TrackDetailResponseDTO> getAllTrack() {
         return trackService.getAllTrack();
     }
 
@@ -201,5 +201,14 @@ public class TrackController {
 
         // 3. Gọi sang AWSUtil xử lý luồng Preview (Cách ly với luồng nghe Full)
         return awsUtil.streamPreviewAudioFile(s3Key, rangeHeader);
+    }
+
+
+    @GetMapping("/top5-views")
+    @Operation(summary = "Lấy Top 5 bài hát nhiều lượt xem nhất", description = "Trả về danh sách 5 bài hát có lượt view cao nhất toàn hệ thống")
+    @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công")
+    public ResponseEntity<List<TrackDetailResponseDTO>> getTop5MostViewedTracks() {
+
+        return ResponseEntity.ok(trackService.getTop5MostViewedTracks());
     }
 }

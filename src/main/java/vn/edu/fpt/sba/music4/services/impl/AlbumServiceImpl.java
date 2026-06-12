@@ -3,29 +3,47 @@ package vn.edu.fpt.sba.music4.services.impl;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.AlbumCreateDTO;
+import vn.edu.fpt.sba.music4.dtos.response.AlbumResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.entities.Artist;
+import vn.edu.fpt.sba.music4.entities.Track;
+import vn.edu.fpt.sba.music4.exceptions.BusinessException;
 import vn.edu.fpt.sba.music4.repositories.AlbumRepository;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
+import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.services.IAlbumService;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class AlbumServiceImpl implements IAlbumService {
     private AlbumRepository albumRepository;
     private ArtistRepository artistRepository;
+    private TrackRepository trackRepository;
 
-    public AlbumServiceImpl(AlbumRepository albumRepository, ArtistRepository artistRepository) {
+    public AlbumServiceImpl(AlbumRepository albumRepository, ArtistRepository artistRepository, TrackRepository trackRepository) {
         this.albumRepository = albumRepository;
         this.artistRepository = artistRepository;
+        this.trackRepository = trackRepository;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Album> getAlbumsByArtist(Integer artistId) {
-        return albumRepository.findByArtistId(artistId);
+    public List<AlbumResponseDTO> getAlbumsByArtist(Integer artistId) {
+        List<Album> albums = albumRepository.findByArtistId(artistId);
+
+        return albums.stream()
+                .map(album -> new AlbumResponseDTO(
+                        album.getId(),
+                        album.getName(),
+                        album.getImg(),
+                        album.getUploadDate(),
+                        album.getTrackTotal(),
+                        album.getArtist().getId()
+                )).collect(Collectors.toList());
     }
 
     @Override
@@ -63,11 +81,44 @@ public class AlbumServiceImpl implements IAlbumService {
         return savedAlbum;
     }
 
+    public AlbumResponseDTO toResponseDto(Album album) {
+        if (album == null) return null;
+
+        return new AlbumResponseDTO(
+                album.getId(),
+                album.getName(),
+                album.getImg(),
+                album.getUploadDate(),
+                album.getTrackTotal(),
+                album.getArtist().getId()
+        );
+    }
+
     @Override
-    @Transactional
+    public List<AlbumResponseDTO> findAll() {
+        return albumRepository.findAll().stream()
+                .map(this::toResponseDto)
+                .toList();
+    }
+
+    // ok
+    @Override
+    @Transactional(rollbackFor = Exception.class)
     public void deleteAlbum(Integer id) {
         Album album = albumRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy album với ID: " + id));
+                .orElseThrow(() -> new BusinessException("Không thể xóa! Không tìm thấy Album có ID: " + id));
+
+        List<Track> tracksInAlbum = trackRepository.findByAlbumId(id);
+
+        if (tracksInAlbum != null && !tracksInAlbum.isEmpty()) {
+            for (Track track : tracksInAlbum) {
+                track.setAlbum(null); // Biến bài hát trong album thành bài hát đơn lẻ (Single)
+            }
+        }
+        if (album.getTracks() != null) {
+            album.getTracks().clear();
+        }
+
         albumRepository.delete(album);
     }
 }

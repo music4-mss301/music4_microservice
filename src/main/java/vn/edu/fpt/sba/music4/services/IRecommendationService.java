@@ -6,5 +6,7 @@ import java.util.List;
 
 public interface IRecommendationService {
 
-    public List<TrackSuggestResponse> getRecommendations(Integer userId);
+    List<TrackSuggestResponse> getRecommendations(Integer userId);
+
+    void syncTracksToElasticsearch();
 }

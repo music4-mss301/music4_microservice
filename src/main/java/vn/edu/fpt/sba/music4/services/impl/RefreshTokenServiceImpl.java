@@ -1,9 +1,9 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.entities.RefreshToken;
 import vn.edu.fpt.sba.music4.exceptions.RefreshTokenException;
 import vn.edu.fpt.sba.music4.repositories.RefreshTokenRepository;
@@ -15,6 +15,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+//@Transactional // thêm để test playlist
 public class RefreshTokenServiceImpl implements IRefreshTokenService {
     @Value("${JWT_REFRESH_EXPIRES_IN}")
     private long refreshExpirationDays;

@@ -51,22 +51,69 @@ public class AuthController {
         Authentication authentication = authManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password()));
 
         UserDetails user = (UserDetails) authentication.getPrincipal();
-        String source = (user instanceof Artist) ? "artist" : "user";
+        Integer id = null;
+        String img = null;
+        String source = "";
+        String role = user.getAuthorities().iterator().next().getAuthority();
+
+        // Ép kiểu để lấy đúng ID và Ảnh đại diện tùy theo người đăng nhập là Artist hay User
+        if (user instanceof Artist) {
+            Artist artist = (Artist) user;
+            id = artist.getId();
+            img = artist.getImg();
+            source = "artist";
+        } else if (user instanceof vn.edu.fpt.sba.music4.entities.User) {
+            vn.edu.fpt.sba.music4.entities.User u = (vn.edu.fpt.sba.music4.entities.User) user;
+            id = u.getId();
+            img = u.getImg();
+            source = "user";
+        }
+
         String accessToken = jwtUtil.generateToken(user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername(), source);
-        return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken()));
+
+        // Trả về Full thông tin cho Frontend hiển thị Navbar
+        return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken(), id, user.getUsername(), img, role));
     }
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh Access Token", description = "Generates a new access token and refresh token using a valid refresh token. Implements token rotation for security.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Token refresh successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))), @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))), @ApiResponse(responseCode = "500", description = "Internal server error during token refresh", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))})
-    public ResponseEntity<TokenResponse> refresh(@RequestBody RefreshRequest req) {
+    public ResponseEntity<?> refresh(@RequestBody RefreshRequest req) {
+        // 1. Xác thực tính hợp lệ của Refresh Token dưới DB
         RefreshToken rt = refreshTokenService.verifyRefreshToken(req.refreshToken());
-        UserDetails user = userDetailsService.loadUserByUsername(rt.getUsername());
-        String newAccess = jwtUtil.generateToken(user);
-        RefreshToken newRt = refreshTokenService.rotate(rt);         // token rotation
 
-        return ResponseEntity.ok(new TokenResponse(newAccess, newRt.getToken()));
+        // 2. Tải thông tin tài khoản lên bộ nhớ tạm
+        UserDetails user = userDetailsService.loadUserByUsername(rt.getUsername());
+
+        Integer id = null;
+        String img = null;
+        String role = user.getAuthorities().iterator().next().getAuthority();
+
+        // 3. 🟢 BỔ SUNG: Bóc tách ID và Ảnh đại diện thật từ DB dựa theo thực thể để khớp cấu trúc TokenResponse mới
+        if (user instanceof Artist) {
+            Artist artist = (Artist) user;
+            id = artist.getId();
+            img = artist.getImg();
+        } else if (user instanceof vn.edu.fpt.sba.music4.entities.User) {
+            vn.edu.fpt.sba.music4.entities.User u = (vn.edu.fpt.sba.music4.entities.User) user;
+            id = u.getId();
+            img = u.getImg();
+        }
+
+        // 4. Sinh cặp mã Token mới cáu cạnh (Đã tăng hạn lên 7 ngày)
+        String newAccess = jwtUtil.generateToken(user);
+        RefreshToken newRt = refreshTokenService.rotate(rt); // Xoay vòng Token cũ chống Hacker chiếm quyền
+
+        // 5. 🟢 SỬA LỖI ĐÚNG YÊU CẦU: Truyền ĐẦY ĐỦ 6 tham số khớp chuẩn 100% với Class Record TokenResponse mới!
+        return ResponseEntity.ok(new TokenResponse(
+                newAccess,
+                newRt.getToken(),
+                id,
+                user.getUsername(),
+                img,
+                role
+        ));
     }
 
     @PostMapping("/logout")
