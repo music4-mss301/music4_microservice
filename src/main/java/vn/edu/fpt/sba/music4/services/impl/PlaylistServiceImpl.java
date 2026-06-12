@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.request.AddTrackRequest;
 import vn.edu.fpt.sba.music4.dtos.request.PlaylistRequest;
+import vn.edu.fpt.sba.music4.dtos.response.PlaylistResponseDTO;
 import vn.edu.fpt.sba.music4.entities.*;
 import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.IPlaylistService;
@@ -22,7 +23,6 @@ public class PlaylistServiceImpl implements IPlaylistService {
     private final UserRepository userRepository;
     private final TrackRepository trackRepository;
 
-    // Lấy thông tin User đang thao tác dựa trên Spring Security + JWT
     private User getAuthenticatedUser() {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUserName(username)
@@ -30,37 +30,56 @@ public class PlaylistServiceImpl implements IPlaylistService {
     }
 
     @Override
-    public Playlist createPlaylist(PlaylistRequest request) {
+    public PlaylistResponseDTO createPlaylist(PlaylistRequest request) {
         User currentUser = getAuthenticatedUser();
 
         Playlist playlist = new Playlist();
-        playlist.setName(request.name()); // Gọi trường từ record
+        playlist.setName(request.name());
         playlist.setUser(currentUser);
-
-        return playlistRepository.save(playlist);
+        Playlist savedPlaylist = playlistRepository.save(playlist);
+        return new PlaylistResponseDTO(
+                savedPlaylist.getId(),
+                savedPlaylist.getName(),
+                currentUser.getId(),
+                currentUser.getUsername()
+        );
     }
 
     @Override
-    public List<Playlist> getMyPlaylists() {
+    public List<PlaylistResponseDTO> getMyPlaylists() {
         User currentUser = getAuthenticatedUser();
-        return playlistRepository.findByUserId(currentUser.getId());
+        List<Playlist> playlists = playlistRepository.findByUserId(currentUser.getId());
+
+        return playlists.stream()
+                .map(p -> new PlaylistResponseDTO(
+                        p.getId(),
+                        p.getName(),
+                        currentUser.getId(),
+                        currentUser.getUsername()
+                ))
+                .toList();
     }
 
     @Override
-    public Playlist updatePlaylist(Integer id, PlaylistRequest request) {
+    public PlaylistResponseDTO updatePlaylist(Integer id, PlaylistRequest request) {
         User currentUser = getAuthenticatedUser();
         Playlist playlist = playlistRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Playlist yêu cầu."));
 
-        // Bảo mật: Kiểm tra quyền sở hữu trước khi sửa
         if (!playlist.getUser().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Bạn không có quyền chỉnh sửa playlist này.");
         }
 
         playlist.setName(request.name());
-        return playlistRepository.save(playlist);
-    }
+        Playlist updatedPlaylist = playlistRepository.save(playlist);
 
+        return new PlaylistResponseDTO(
+                updatedPlaylist.getId(),
+                updatedPlaylist.getName(),
+                currentUser.getId(),
+                currentUser.getUsername()
+        );
+    }
     @Override
     public void deletePlaylist(Integer id) {
         User currentUser = getAuthenticatedUser();
@@ -76,7 +95,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
     }
 
     @Override
-    public PlaylistTrack addTrackToPlaylist(Integer playlistId, AddTrackRequest request) {
+    public void addTrackToPlaylist(Integer playlistId, AddTrackRequest request) {
         User currentUser = getAuthenticatedUser();
         Playlist playlist = playlistRepository.findById(playlistId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Playlist yêu cầu."));
@@ -98,7 +117,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
         playlistTrack.setTrack(track);
         playlistTrack.setAddedAt(LocalDateTime.now());
 
-        return playlistTrackRepository.save(playlistTrack);
+        playlistTrackRepository.save(playlistTrack);
     }
 
     @Override

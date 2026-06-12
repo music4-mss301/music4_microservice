@@ -5,8 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.AddTrackRequest;
 import vn.edu.fpt.sba.music4.dtos.request.PlaylistRequest;
-import vn.edu.fpt.sba.music4.entities.Playlist;
-import vn.edu.fpt.sba.music4.entities.PlaylistTrack;
+import vn.edu.fpt.sba.music4.dtos.response.PlaylistResponseDTO;
 import vn.edu.fpt.sba.music4.services.IPlaylistService;
 
 import java.util.List;
@@ -20,17 +19,17 @@ public class PlaylistController {
     private final IPlaylistService playlistService;
 
     @PostMapping
-    public ResponseEntity<Playlist> createPlaylist(@RequestBody PlaylistRequest request) {
+    public ResponseEntity<PlaylistResponseDTO> createPlaylist(@RequestBody PlaylistRequest request) {
         return ResponseEntity.ok(playlistService.createPlaylist(request));
     }
 
     @GetMapping("/me")
-    public ResponseEntity<List<Playlist>> getMyPlaylists() {
+    public ResponseEntity<List<PlaylistResponseDTO>> getMyPlaylists() {
         return ResponseEntity.ok(playlistService.getMyPlaylists());
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Playlist> updatePlaylist(@PathVariable Integer id, @RequestBody PlaylistRequest request) {
+    public ResponseEntity<PlaylistResponseDTO> updatePlaylist(@PathVariable Integer id, @RequestBody PlaylistRequest request) {
         return ResponseEntity.ok(playlistService.updatePlaylist(id, request));
     }
 
@@ -41,10 +40,11 @@ public class PlaylistController {
     }
 
     @PostMapping("/{id}/tracks")
-    public ResponseEntity<PlaylistTrack> addTrackToPlaylist(
+    public ResponseEntity<String> addTrackToPlaylist(
             @PathVariable Integer id,
             @RequestBody AddTrackRequest request) {
-        return ResponseEntity.ok(playlistService.addTrackToPlaylist(id, request));
+        playlistService.addTrackToPlaylist(id, request);
+        return ResponseEntity.ok("Thêm bài hát vào playlist thành công!");
     }
 
     @DeleteMapping("/{id}/tracks/{trackId}")
