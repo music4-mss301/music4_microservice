@@ -1,6 +1,5 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
-import org.springframework.boot.autoconfigure.amqp.RabbitProperties;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -9,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.request.UserRequest;
+import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
 import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.enums.ERole;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
@@ -64,10 +64,24 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
                 registrationRequest.username(),
                 hashedPassword,
                 ERole.LISTENER.name()));
+     }
+
+    private UserResponseDTO toResponseDto(User user) {
+        if (user == null) return null;
+
+        return new UserResponseDTO(
+                user.getId(),
+                user.getName(),
+                user.getImg(),
+                user.getEmail(),
+                user.getGender(),
+                user.getRole(),
+                user.getUsername()
+        );
     }
 
     @Override
-    public User update(Integer id, UserRequest userRequest) {
+    public UserResponseDTO update(Integer id, UserRequest userRequest) {
         User user = this.userRepository.findById(id).map((u) -> {
                     if(userRequest.name() != null && !userRequest.name().isBlank()) {
                         u.setName(userRequest.name());
@@ -89,6 +103,6 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
                     return this.userRepository.save(u);
                 })
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
-        return user;
+        return toResponseDto(user);
     }
 }

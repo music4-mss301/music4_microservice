@@ -59,7 +59,7 @@ public class SearchServiceImpl implements ISearchService {
             ));
 
             Page<ArtistResponseDTO> artistDTOPage = artistPage.map(artist -> new ArtistResponseDTO(
-                    artist.getId(), artist.getName(), artist.getImg(), artist.getUsername(),artist.getTrackTotal(),artist.getAlbumTotal()
+                    artist.getId(), artist.getName(), artist.getImg(), artist.getUsername(),artist.getTrackTotal() ,artist.getAlbumTotal()
             ));
 
             Page<PlaylistResponseDTO> playlistDTOPage = playlistPage.map(playlist -> new PlaylistResponseDTO(

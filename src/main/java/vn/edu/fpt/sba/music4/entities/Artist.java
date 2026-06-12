@@ -1,5 +1,6 @@
 package vn.edu.fpt.sba.music4.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
@@ -50,6 +51,7 @@ public class Artist implements UserDetails {
     private Integer albumTotal;
 
     @OneToMany(mappedBy = "artist", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnore
     @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"}) // <-- BỔ SUNG DÒNG NÀY
     private List<Album> albums;
 

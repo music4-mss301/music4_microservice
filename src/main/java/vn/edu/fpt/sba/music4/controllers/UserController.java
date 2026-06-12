@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.UserRequest;
-import vn.edu.fpt.sba.music4.entities.User;
+import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
 import vn.edu.fpt.sba.music4.services.IUserService;
 
 @RestController
@@ -14,7 +14,7 @@ public class UserController {
     private final IUserService iUserService;
 
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public User updateUser(@PathVariable Integer id, @ModelAttribute UserRequest userRequest) {
+    public UserResponseDTO updateUser(@PathVariable Integer id, @ModelAttribute UserRequest userRequest) {
         return iUserService.update(id, userRequest);
     }
 }

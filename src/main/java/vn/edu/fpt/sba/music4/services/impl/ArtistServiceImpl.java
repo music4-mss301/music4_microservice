@@ -1,5 +1,6 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -7,6 +8,7 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import vn.edu.fpt.sba.music4.dtos.request.ArtistRequestDTO;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.response.ArtistResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Artist;
@@ -19,16 +21,12 @@ import java.io.IOException;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
     private final AWSUtil aWSUtil;
 
-    public ArtistServiceImpl(UserRepository userRepository, ArtistRepository artistRepository, AWSUtil aWSUtil) {
-        this.userRepository = userRepository;
-        this.artistRepository = artistRepository;
-        this.aWSUtil = aWSUtil;
-    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -50,6 +48,8 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
                 artist.getId(),
                 artist.getName(),
                 artist.getImg(),
+                artist.getCover(),
+                artist.getEmail(),
                 artist.getUsername(),
                 artist.getTrackTotal(),
                 artist.getAlbumTotal()
@@ -109,5 +109,42 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
         artist.setAlbumTotal(0);
 
         return artistRepository.save(artist);
+    }
+
+    @Override
+    @Transactional
+    public ArtistResponseDTO update(Integer artistId, ArtistRequestDTO artistRequest) {
+        Artist artist = artistRepository.findById(artistId)
+                .orElseThrow(() -> new RuntimeException("Artist not found with id: " + artistId));
+
+        // Update name if provided and not blank
+        if (artistRequest.name() != null && !artistRequest.name().isBlank()) {
+            artist.setName(artistRequest.name());
+        }
+
+        // Update avatar if provided
+        MultipartFile avatarFile = artistRequest.img();
+        if (avatarFile != null && !avatarFile.isEmpty()) {
+            try {
+                String s3Key = aWSUtil.uploadFile(avatarFile, "avatars");
+                artist.setImg(s3Key);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to upload avatar image", e);
+            }
+        }
+
+        // Update cover if provided
+        MultipartFile coverFile = artistRequest.cover();
+        if (coverFile != null && !coverFile.isEmpty()) {
+            try {
+                String s3Key = aWSUtil.uploadFile(coverFile, "covers");
+                artist.setCover(s3Key);
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to upload cover image", e);
+            }
+        }
+
+        Artist updatedArtist = artistRepository.save(artist);
+        return toResponseDto(updatedArtist);
     }
 }
