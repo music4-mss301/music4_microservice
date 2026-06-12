@@ -19,7 +19,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/analytics")
 @RequiredArgsConstructor
-@CrossOrigin("*")
 @Tag(name = "Analytics & Rating API", description = "Các API thống kê số liệu Dashboard cho Nghệ sĩ và thu thập đánh giá bài hát")
 public class AnalyticsController {
 

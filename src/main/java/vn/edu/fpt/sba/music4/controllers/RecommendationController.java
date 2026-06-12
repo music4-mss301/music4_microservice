@@ -15,7 +15,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/recommendations")
 @RequiredArgsConstructor
-@CrossOrigin("*")
 @Tag(name = "AI Recommendation API", description = "API Gợi ý bài hát thông minh dựa trên lịch sử nghe và sở thích của người dùng (Content-Based Filtering)")
 public class RecommendationController {
 
@@ -36,6 +35,10 @@ public class RecommendationController {
 
     @PostMapping("/sync")
     @Operation(summary = "Đồng bộ nhạc lên ES (Chạy ngầm)", description = "Lấy toàn bộ nhạc trong SQL -> Dịch sang Vector -> Đẩy vào Elasticsearch. API này không block (không treo), trả về phản hồi ngay lập tức.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Đã tiếp nhận yêu cầu, tiến trình đồng bộ Vector đang được chạy ngầm (Accepted)"),
+            @ApiResponse(responseCode = "500", description = "Lỗi hệ thống trong quá trình khởi tạo đồng bộ")
+    })
     public ResponseEntity<String> syncDataToElasticsearch() {
         recommendationService.syncTracksToElasticsearch();
         return ResponseEntity.accepted().body("Tiến trình đồng bộ Vector đang được chạy ngầm. Vui lòng kiểm tra màn hình console (log) của hệ thống để xem tiến độ!");
