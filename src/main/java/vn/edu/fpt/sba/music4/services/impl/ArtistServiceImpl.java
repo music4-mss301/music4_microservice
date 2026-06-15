@@ -36,9 +36,12 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
-    public Artist getArtistById(Integer id) {
-        return artistRepository.findById(id)
+    public ArtistResponseDTO getArtistById(Integer id) { // 🟢 Đổi kiểu trả về ở đây
+        Artist artist = artistRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Nghệ sĩ với ID: " + id));
+
+        // 🟢 Gọi hàm map sang DTO để loại bỏ dữ liệu nhạy cảm & chống lặp JSON
+        return toResponseDto(artist);
     }
 
     public ArtistResponseDTO toResponseDto(Artist artist) {
