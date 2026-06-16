@@ -153,6 +153,7 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
 
     @Override
     public long countTotalArtists() {
+        // for commit
         return artistRepository.count();
     }
 }
