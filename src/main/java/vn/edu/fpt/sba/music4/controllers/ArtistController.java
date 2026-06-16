@@ -23,7 +23,7 @@ public class ArtistController {
     @GetMapping("")
     public Page<ArtistResponseDTO> getAllArtist(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
+            @RequestParam(defaultValue = "12") int size) {
 
         // Tạo đối tượng phân trang (bồ có thể thêm Sort nếu muốn sắp xếp theo ID tăng/giảm dần)
         Pageable pageable = PageRequest.of(page, size);
