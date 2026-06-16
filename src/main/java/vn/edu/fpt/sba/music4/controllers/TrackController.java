@@ -9,6 +9,9 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.TrackUploadDTO;
@@ -54,13 +57,16 @@ public class TrackController {
             @RequestParam("audioFile") MultipartFile audioFile,
             @RequestParam("coverImage") MultipartFile coverImage,
             @ModelAttribute @Valid TrackUploadDTO dto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        String currentUsername = userDetails.getUsername(); // Đây là username/email của ca sĩ
         if (audioFile == null || audioFile.isEmpty()) {
             throw new IllegalArgumentException("Lỗi: File âm thanh (audioFile) không được để trống!");
         }
         if (coverImage == null || coverImage.isEmpty()) {
             throw new IllegalArgumentException("Lỗi: File ảnh bìa (coverImage) không được để trống!");
         }
-        TrackDetailResponseDTO response = trackService.uploadTrack(audioFile, coverImage, dto);
+        TrackDetailResponseDTO response = trackService.uploadTrack(audioFile, coverImage, dto, currentUsername);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

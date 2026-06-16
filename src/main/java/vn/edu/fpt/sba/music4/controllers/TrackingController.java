@@ -10,13 +10,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.SyncTimeRequest;
 import vn.edu.fpt.sba.music4.dtos.request.TrackPlayRequest;
+import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.services.ITrackingService;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/tracking")
 @RequiredArgsConstructor
-@CrossOrigin("*")
-@Tag(name = "Tracking & History API", description = "Các API xử lý ghi nhận lịch sử nghe nhạc và đồng bộ thời gian phát của người dùng")
+    @Tag(name = "Tracking & History API", description = "Các API xử lý ghi nhận lịch sử nghe nhạc và đồng bộ thời gian phát của người dùng")
 public class TrackingController {
 
     private final ITrackingService trackingService;
@@ -42,5 +44,15 @@ public class TrackingController {
     public ResponseEntity<String> syncPlaybackTime(@Valid @RequestBody SyncTimeRequest request) {
         trackingService.syncPlaybackPosition(request);
         return ResponseEntity.ok("Time synchronized successfully!");
+    }
+
+    @GetMapping("/history/{userId}")
+    @Operation(summary = "Lấy lịch sử nghe nhạc của người dùng", description = "Trả về danh sách các bài hát mà người dùng đã nghe gần đây, được sắp xếp theo thời gian nghe mới nhất lên đầu.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Lấy danh sách lịch sử thành công"),
+            @ApiResponse(responseCode = "404", description = "Không tìm thấy thông tin người dùng")
+    })
+    public ResponseEntity<List<TrackResponseDTO>> getHistory(@PathVariable Integer userId) {
+        return ResponseEntity.ok(trackingService.getListeningHistory(userId));
     }
 }
