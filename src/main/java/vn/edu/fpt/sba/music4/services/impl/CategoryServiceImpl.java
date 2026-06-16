@@ -4,6 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryDetailResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Category;
 import vn.edu.fpt.sba.music4.entities.Track;
@@ -50,7 +51,17 @@ public class CategoryServiceImpl implements ICategoryService {
         List<TrackResponseDTO> trackDtos = category.getTrackCategories().stream()
                 .map(trackCategory -> {
                     Track track = trackCategory.getTrack();
-                    // Map thủ công hoặc dùng Mapper để biến đổi từ Track sang TrackResponseDTO
+
+                    // 🟢 BƯỚC MỚI: Bóc tách danh sách nghệ sĩ từ bảng trung gian
+                    List<TrackArtistInfo> artistList = track.getTrackArtists() != null ?
+                            track.getTrackArtists().stream()
+                                    .map(ta -> new TrackArtistInfo(
+                                            ta.getArtist().getId(),
+                                            ta.getArtist().getName(),
+                                            ta.getRole()
+                                    )).toList() : List.of();
+
+                    // Trả về DTO với đầy đủ 9 tham số
                     return new TrackResponseDTO(
                             track.getId(),
                             track.getName(),
@@ -59,7 +70,8 @@ public class CategoryServiceImpl implements ICategoryService {
                             track.getFilePath(),
                             track.getPreviewPath(),
                             track.getViewCount(),
-                            track.getUploadDate()
+                            track.getUploadDate(),
+                            artistList // 🟢 Truyền danh sách nghệ sĩ vào đây
                     );
                 })
                 .collect(Collectors.toList());

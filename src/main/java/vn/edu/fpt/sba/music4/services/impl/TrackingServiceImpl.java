@@ -14,7 +14,7 @@ import vn.edu.fpt.sba.music4.repositories.HistoryRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.ITrackingService;
-
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -82,6 +82,16 @@ public class TrackingServiceImpl implements ITrackingService{
                 .sorted((h1, h2) -> h2.getListenedAt().compareTo(h1.getListenedAt())) // Sắp xếp mới nhất lên đầu
                 .map(history -> {
                     Track track = history.getTrack();
+
+                    // 🟢 BƯỚC MỚI: Bóc tách danh sách nghệ sĩ từ bảng trung gian
+                    List<TrackArtistInfo> artistList = track.getTrackArtists() != null ?
+                            track.getTrackArtists().stream()
+                                    .map(ta -> new TrackArtistInfo(
+                                            ta.getArtist().getId(),
+                                            ta.getArtist().getName(),
+                                            ta.getRole()
+                                    )).toList() : List.of();
+
                     return new TrackResponseDTO(
                             track.getId(),
                             track.getName(),
@@ -90,7 +100,8 @@ public class TrackingServiceImpl implements ITrackingService{
                             track.getFilePath(),
                             track.getPreviewPath(),
                             track.getViewCount(),
-                            track.getUploadDate()
+                            track.getUploadDate(),
+                            artistList // 🟢 Truyền danh sách nghệ sĩ vào tham số thứ 9
                     );
                 })
                 .toList();

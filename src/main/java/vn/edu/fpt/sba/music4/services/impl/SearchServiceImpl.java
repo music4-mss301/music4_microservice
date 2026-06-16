@@ -1,5 +1,6 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +11,7 @@ import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.ISearchService;
 
 import java.text.Normalizer;
+import java.util.List;
 import java.util.regex.Pattern;
 
 @Service
@@ -35,6 +37,7 @@ public class SearchServiceImpl implements ISearchService {
         return noAccent.toLowerCase().replace("-", " ");
     }
     @Override
+    @Transactional(readOnly = true)
     public SearchResultResponseDTO search(String keyword, String type, int page, int size) {
         String cleanKey = cleanKeyword(keyword);
 
@@ -49,9 +52,27 @@ public class SearchServiceImpl implements ISearchService {
             Page<Playlist> playlistPage = playlistRepository.searchByName(cleanKey, pageable);
             Page<Category> categoryPage = categoryRepository.searchByName(cleanKey, pageable);
 
-            Page<TrackResponseDTO> trackDTOPage = trackPage.map(track -> new TrackResponseDTO(
-                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getFilePath(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
-            ));
+            Page<TrackResponseDTO> trackDTOPage = trackPage.map(track -> {
+                List<TrackArtistInfo> artistList = track.getTrackArtists() != null ?
+                        track.getTrackArtists().stream()
+                                .map(ta -> new TrackArtistInfo(
+                                        ta.getArtist().getId(),
+                                        ta.getArtist().getName(),
+                                        ta.getRole()
+                                )).toList() : List.of();
+
+                return new TrackResponseDTO(
+                        track.getId(),
+                        track.getName(),
+                        track.getImg(),
+                        track.getDuration(),
+                        track.getFilePath(),
+                        track.getPreviewPath(),
+                        track.getViewCount(),
+                        track.getUploadDate(),
+                        artistList // Truyền danh sách TrackArtistInfo vào đây
+                );
+            });
 
             Page<AlbumResponseDTO> albumDTOPage = albumPage.map(album -> new AlbumResponseDTO(
                     album.getId(), album.getName(), album.getImg(), album.getUploadDate(), album.getTrackTotal(),
@@ -76,11 +97,24 @@ public class SearchServiceImpl implements ISearchService {
 
         // 2. TÌM KIẾM CHI TIẾT THEO TYPE
         return switch (type.toLowerCase()) {
-            case "track" -> {Page<TrackResponseDTO> trackDTOPage = trackRepository.searchByName(cleanKey,pageable).map(track -> new TrackResponseDTO(
-                    track.getId(), track.getName(), track.getImg(), track.getDuration(), track.getFilePath(), track.getPreviewPath(),track.getViewCount(),track.getUploadDate()
-            ));
-            yield new SearchResultResponseDTO(trackDTOPage,null,null,null,null);
+            case "track" -> {Page<TrackResponseDTO> trackDTOPage = trackRepository.searchByName(cleanKey,pageable).map(track -> {
+                List<TrackArtistInfo> artistList = track.getTrackArtists() != null ?
+                        track.getTrackArtists().stream()
+                                .map(ta -> new TrackArtistInfo(
+                                        ta.getArtist().getId(),
+                                        ta.getArtist().getName(),
+                                        ta.getRole()
+                                )).toList() : List.of();
+
+                return new TrackResponseDTO(
+                        track.getId(), track.getName(), track.getImg(), track.getDuration(),
+                        track.getFilePath(), track.getPreviewPath(), track.getViewCount(),
+                        track.getUploadDate(), artistList // Truyền danh sách TrackArtistInfo vào đây
+                );
+            });
+                yield new SearchResultResponseDTO(trackDTOPage,null,null,null,null);
             }
+
 
             case "artist" -> {
                 Page<ArtistResponseDTO> artistDTOPage = artistRepository.searchByName(cleanKey, pageable).map(artist -> new ArtistResponseDTO(

@@ -287,7 +287,15 @@ public class TrackServiceImpl implements ITrackService {
 
     public TrackResponseDTO toResponseDto(Track track) {
         if (track == null) return null;
-
+        List<TrackArtistInfo> artistList = List.of();
+        if (track.getTrackArtists() != null) {
+            artistList = track.getTrackArtists().stream()
+                    .map(ta -> new TrackArtistInfo(
+                            ta.getArtist().getId(),
+                            ta.getArtist().getName(),
+                            ta.getRole() // Vai trò MAIN hoặc FEAT
+                    )).toList();
+        }
         return new TrackResponseDTO(
                 track.getId(),
                 track.getName(),
@@ -296,7 +304,8 @@ public class TrackServiceImpl implements ITrackService {
                 track.getFilePath(),
                 track.getPreviewPath(),
                 track.getViewCount(),
-                track.getUploadDate()
+                track.getUploadDate(),
+                artistList
         );
     }
 
