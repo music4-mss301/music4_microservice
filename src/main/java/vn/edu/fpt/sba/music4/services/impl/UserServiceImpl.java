@@ -1,5 +1,9 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -17,6 +21,8 @@ import vn.edu.fpt.sba.music4.services.IUserService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
 
 import java.io.IOException;
+import java.security.Principal;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -82,6 +88,14 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
 
     @Override
     public UserResponseDTO update(Integer id, UserRequest userRequest) {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        UserDetails userDetails =
+                (UserDetails) authentication.getPrincipal();
+
+        System.out.println("Current user: " + userDetails.getUsername() + " - " + userDetails.getAuthorities());
+
         User user = this.userRepository.findById(id).map((u) -> {
                     if(userRequest.name() != null && !userRequest.name().isBlank()) {
                         u.setName(userRequest.name());
@@ -105,4 +119,11 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
         return toResponseDto(user);
     }
+
+    @Override
+    public Page<UserResponseDTO> getAll(Pageable pageable) {
+        return this.userRepository.findAll(pageable).map(this::toResponseDto);
+    }
+
+
 }
