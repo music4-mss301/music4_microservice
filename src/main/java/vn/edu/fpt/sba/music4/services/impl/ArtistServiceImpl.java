@@ -150,4 +150,10 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
         Artist updatedArtist = artistRepository.save(artist);
         return toResponseDto(updatedArtist);
     }
+
+    @Override
+    public long countTotalArtists() {
+        // for commit
+        return artistRepository.count();
+    }
 }
