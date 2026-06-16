@@ -39,4 +39,10 @@ public class ArtistController {
     public ResponseEntity<ArtistResponseDTO> getArtistById(@PathVariable Integer id) {
         return ResponseEntity.ok(iArtistService.getArtistById(id));
     }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> getTotalArtistCount() {
+        long total = iArtistService.countTotalArtists();
+        return ResponseEntity.ok(total);
+    }
 }
