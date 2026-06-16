@@ -1,6 +1,8 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -60,11 +62,9 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<ArtistResponseDTO> getAllArtists() {
-        return artistRepository.findAll().stream()
-                .map(this::toResponseDto)
-                .toList();
+    public Page<ArtistResponseDTO> getAllArtists(Pageable pageable) {
+        Page<Artist> artistPage = artistRepository.findAll(pageable);
+        return artistPage.map(artist -> this.toResponseDto(artist));
     }
 
     @Override
