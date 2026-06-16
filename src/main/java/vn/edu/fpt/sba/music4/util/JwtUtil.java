@@ -47,6 +47,14 @@ public class JwtUtil {
         return claims(token).get("source", String.class);
     }
 
+    public String extractId(String token) {
+        return claims(token).get("id", String.class);
+    }
+
+    public String extractRole(String token) {
+        return claims(token).get("role", String.class);
+    }
+
     public boolean isValid(String token, UserDetails user) {
         return extractUsername(token).equals(user.getUsername())
                 && !claims(token).getExpiration().before(new Date());

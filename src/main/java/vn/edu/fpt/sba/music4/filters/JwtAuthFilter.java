@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import vn.edu.fpt.sba.music4.entities.CustomUserDetails;
 import vn.edu.fpt.sba.music4.util.JwtUtil;
 import vn.edu.fpt.sba.music4.services.impl.ArtistServiceImpl;
 import vn.edu.fpt.sba.music4.services.impl.CustomUserDetailsServiceImpl;
@@ -39,15 +40,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token    = header.substring(7);
         String username = jwtUtil.extractUsername(token);
-        String source   = jwtUtil.extractSource(token);  // "user" | "artist"
+        String source   = jwtUtil.extractSource(token);
 
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+//            Integer userId = Integer.parseInt(jwtUtil.extractId(token));
+//            String role  = jwtUtil.extractRole(token);
+
             UserDetails user = "artist".equals(source)
                     ? artistDetailsService.loadUserByUsername(username)
                     : userDetailsService.loadUserByUsername(username);
             System.out.println("Load Ok: " + user.getUsername() + " - " + user.getAuthorities());
-
+//            CustomUserDetails cud = (CustomUserDetails) user;
             if (jwtUtil.isValid(token, user)) {
                 var auth = new UsernamePasswordAuthenticationToken(
                         user, null, user.getAuthorities());
