@@ -48,19 +48,6 @@ public class SecurityConfig {
                                 .anyRequest().authenticated())
                 .authenticationProvider(authProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .exceptionHandling(exception -> exception
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            System.out.println("--- 403 FORBIDDEN AT URL: " + request.getRequestURI());
-                            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                            if (auth != null) {
-                                System.out.println("Logged User: " + auth.getName());
-                                System.out.println("Current role in text: " + auth.getAuthorities());
-                            } else {
-                                System.out.println("No user in Context (Auth null)!");
-                            }
-                            response.sendError(403, "Forbidden");
-                        })
-                )
                 .build();
     }
 
