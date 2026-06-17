@@ -17,4 +17,6 @@ public interface IArtistService {
     Artist save(RegistrationRequest registrationRequest);
 
     ArtistResponseDTO update(Integer artistId, ArtistRequestDTO artistRequest);
+
+    long countTotalArtists();
 }
