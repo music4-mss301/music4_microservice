@@ -24,4 +24,9 @@ public class UserController {
     public PageResponseDTO<UserResponseDTO>  getAll(Pageable pageable) {
         return PageResponseDTO.of(userService.getAll(pageable));
     }
+
+    @GetMapping("/count")
+    public int getTotalUsers() {
+        return userService.getTotalUsers();
+    }
 }

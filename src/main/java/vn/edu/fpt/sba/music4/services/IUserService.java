@@ -15,6 +15,7 @@ public interface IUserService {
     User save(RegistrationRequest registrationRequest);
     UserResponseDTO update(Integer userId, UserRequest  userRequest);
     Page<UserResponseDTO> getAll(Pageable pageable);
+    int getTotalUsers();
 }
 
 
