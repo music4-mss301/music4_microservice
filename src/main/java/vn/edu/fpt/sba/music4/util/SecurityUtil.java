@@ -27,7 +27,6 @@ public class SecurityUtil {
                 .iterator().next().getAuthority();
     }
 
-    /** Trả về id dù là Artist hay CustomUserDetails */
     public static Integer getCurrentId() {
         UserDetails userDetails = getCurrentUser();
         if (userDetails instanceof Artist artist)           return artist.getId();

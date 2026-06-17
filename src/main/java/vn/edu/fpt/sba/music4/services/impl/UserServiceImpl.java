@@ -129,5 +129,10 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
         return this.userRepository.findAll(pageable).map(this::toResponseDto);
     }
 
+    @Override
+    public int getTotalUsers() {
+        return Math.toIntExact(this.userRepository.count());
+    }
+
 
 }
