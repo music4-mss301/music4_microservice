@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 import vn.edu.fpt.sba.music4.entities.Track;
 
 import java.util.List;
+import java.util.Map;
 
 @Repository
 public interface TrackRepository extends JpaRepository<Track, Integer> {
@@ -37,4 +38,5 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
     List<Track> findByAlbumId(Integer albumId);
     int countByAlbumId(Integer albumId);
     List<Track> findTop5ByOrderByViewCountDesc();
+
 }
