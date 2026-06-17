@@ -56,7 +56,6 @@ public class AuthController {
         String source = "";
         String role = user.getAuthorities().iterator().next().getAuthority();
 
-        // Ép kiểu để lấy đúng ID và Ảnh đại diện tùy theo người đăng nhập là Artist hay User
         if (user instanceof Artist) {
             Artist artist = (Artist) user;
             id = artist.getId();
@@ -72,7 +71,6 @@ public class AuthController {
         String accessToken = jwtUtil.generateToken(user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername(), source);
 
-        // Trả về Full thông tin cho Frontend hiển thị Navbar
         return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken(), id, user.getUsername(), img, role));
     }
 
@@ -80,17 +78,13 @@ public class AuthController {
     @Operation(summary = "Refresh Access Token", description = "Generates a new access token and refresh token using a valid refresh token. Implements token rotation for security.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Token refresh successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))), @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))), @ApiResponse(responseCode = "500", description = "Internal server error during token refresh", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))})
     public ResponseEntity<?> refresh(@RequestBody RefreshRequest req) {
-        // 1. Xác thực tính hợp lệ của Refresh Token dưới DB
         RefreshToken rt = refreshTokenService.verifyRefreshToken(req.refreshToken());
-
-        // 2. Tải thông tin tài khoản lên bộ nhớ tạm
         UserDetails user = userDetailsService.loadUserByUsername(rt.getUsername());
 
         Integer id = null;
         String img = null;
         String role = user.getAuthorities().iterator().next().getAuthority();
 
-        // 3. 🟢 BỔ SUNG: Bóc tách ID và Ảnh đại diện thật từ DB dựa theo thực thể để khớp cấu trúc TokenResponse mới
         if (user instanceof Artist) {
             Artist artist = (Artist) user;
             id = artist.getId();
@@ -101,19 +95,10 @@ public class AuthController {
             img = u.getImg();
         }
 
-        // 4. Sinh cặp mã Token mới cáu cạnh (Đã tăng hạn lên 7 ngày)
         String newAccess = jwtUtil.generateToken(user);
-        RefreshToken newRt = refreshTokenService.rotate(rt); // Xoay vòng Token cũ chống Hacker chiếm quyền
+        RefreshToken newRt = refreshTokenService.rotate(rt);
 
-        // 5. 🟢 SỬA LỖI ĐÚNG YÊU CẦU: Truyền ĐẦY ĐỦ 6 tham số khớp chuẩn 100% với Class Record TokenResponse mới!
-        return ResponseEntity.ok(new TokenResponse(
-                newAccess,
-                newRt.getToken(),
-                id,
-                user.getUsername(),
-                img,
-                role
-        ));
+        return ResponseEntity.ok(new TokenResponse(newAccess, newRt.getToken(), id, user.getUsername(), img, role));
     }
 
     @PostMapping("/logout")
@@ -127,9 +112,7 @@ public class AuthController {
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "User Registration", description = "Register a new user (artist or listener). Different registration paths are supported based on the 'role' parameter.")
     @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "User registered successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))), @ApiResponse(responseCode = "400", description = "Bad request - Invalid role parameter or missing required fields", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))), @ApiResponse(responseCode = "409", description = "Conflict - Username or email already exists", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))), @ApiResponse(responseCode = "500", description = "Internal server error during registration", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))})
-    public ResponseEntity<AuthResponse> register(@Parameter(name = "role", description = "User role for registration: 'artist' or 'listener'", required = true, example = "artist")
-                                                 @RequestParam("role") String role,
-                                                 @ModelAttribute RegistrationRequest registrationRequest) {
+    public ResponseEntity<AuthResponse> register(@Parameter(name = "role", description = "User role for registration: 'artist' or 'listener'", required = true, example = "artist") @RequestParam("role") String role, @ModelAttribute RegistrationRequest registrationRequest) {
         if (role == null || role.isEmpty()) {
             return ResponseEntity.badRequest().body(new AuthResponse("Role parameter is required"));
         }
@@ -164,15 +147,13 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<AuthResponse> forgotPassword(
-            @Valid @RequestBody ForgotPasswordRequest request) {
+    public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         passwordResetTokenService.initiatePasswordReset(request.email());
         return ResponseEntity.ok(new AuthResponse("Reset token is sent."));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<AuthResponse> resetPassword(
-            @Valid @RequestBody ResetPasswordRequest request) {
+    public ResponseEntity<AuthResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         passwordResetTokenService.resetPassword(request.token(), request.newPassword());
         return ResponseEntity.ok(new AuthResponse("Password has been reset."));
     }
