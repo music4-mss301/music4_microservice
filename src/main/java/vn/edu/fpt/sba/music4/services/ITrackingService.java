@@ -11,5 +11,5 @@ public interface ITrackingService {
 
     void syncPlaybackPosition(SyncTimeRequest request);
 
-    List<TrackResponseDTO> getListeningHistory(Integer userId);
+    Page<TrackResponseDTO> getListeningHistory(Integer userId);
 }

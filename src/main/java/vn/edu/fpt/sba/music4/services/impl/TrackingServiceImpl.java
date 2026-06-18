@@ -74,7 +74,7 @@ public class TrackingServiceImpl implements ITrackingService{
 
     @Override
     @Transactional(readOnly = true)
-    public List<TrackResponseDTO> getListeningHistory(Integer userId) {
+    public Page<TrackResponseDTO> getListeningHistory(Integer userId) {
         // Lấy lịch sử từ DB, có thể thêm limit() để lấy top 20 bài gần nhất
         List<History> histories = historyRepository.findByUserId(userId);
 
