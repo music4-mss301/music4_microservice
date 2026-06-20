@@ -21,7 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tracking")
 @RequiredArgsConstructor
-    @Tag(name = "Tracking & History API", description = "Các API xử lý ghi nhận lịch sử nghe nhạc và đồng bộ thời gian phát của người dùng")
+@Tag(name = "Tracking & History API", description = "Các API xử lý ghi nhận lịch sử nghe nhạc và đồng bộ thời gian phát của người dùng")
 public class TrackingController {
 
     private final ITrackingService trackingService;
@@ -57,6 +57,6 @@ public class TrackingController {
     })
     public ResponseEntity<Page<TrackResponseDTO>> getHistory(@PathVariable Integer userId,
                                                              @PageableDefault(size = 20, page = 0) Pageable pageable) {
-        return ResponseEntity.ok(trackingService.getListeningHistory(userId));
+        return ResponseEntity.ok(trackingService.getListeningHistory(userId, pageable));
     }
 }
