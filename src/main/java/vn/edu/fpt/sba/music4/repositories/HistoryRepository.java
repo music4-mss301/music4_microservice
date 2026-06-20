@@ -1,5 +1,7 @@
 package vn.edu.fpt.sba.music4.repositories;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -25,7 +27,12 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
             """, nativeQuery = true)
     List<IChartData> countViewsByArtistPerDay(@Param("artistId") Integer artistId);
 
+    // Get the most recent listening record of a User for a specific Track
     Optional<History> findTopByUserIdAndTrackIdOrderByListenedAtDesc(Integer userId, Integer trackId);
 
+    // Use for AI Recommendation
     List<History> findByUserId(Integer userId);
+
+    // Use for History pagination
+    Page<History> findByUserId(Integer userId, Pageable pageable);
 }
