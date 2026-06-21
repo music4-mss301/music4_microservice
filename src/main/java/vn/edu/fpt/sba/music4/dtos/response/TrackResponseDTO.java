@@ -10,6 +10,7 @@ public record TrackResponseDTO(
         String filePath,
         String previewPath, // Giúp Frontend gắn vào thẻ <audio> để phát thử nhạc
         Integer viewCount,
-        LocalDate uploadDate
+        LocalDate uploadDate,
+        Integer playbackPosition
 ) {
 }

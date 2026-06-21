@@ -296,7 +296,8 @@ public class TrackServiceImpl implements ITrackService {
                 track.getFilePath(),
                 track.getPreviewPath(),
                 track.getViewCount(),
-                track.getUploadDate()
+                track.getUploadDate(),
+                null
         );
     }
 

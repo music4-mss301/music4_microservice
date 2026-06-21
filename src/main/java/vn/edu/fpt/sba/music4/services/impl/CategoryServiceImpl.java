@@ -59,7 +59,8 @@ public class CategoryServiceImpl implements ICategoryService {
                             track.getFilePath(),
                             track.getPreviewPath(),
                             track.getViewCount(),
-                            track.getUploadDate()
+                            track.getUploadDate(),
+                            null
                     );
                 })
                 .collect(Collectors.toList());

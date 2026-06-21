@@ -64,10 +64,26 @@ public class TrackingServiceImpl implements ITrackingService{
                     .findTopByUserIdAndTrackIdOrderByListenedAtDesc(request.userId(), request.trackId());
 
             if (latestHistory.isPresent()) {
+                // Đã có lịch sử -> Chỉ cần cập nhật thời gian
                 History history = latestHistory.get();
                 history.setPlaybackPosition(request.position());
+
+                historyRepository.save(history);
             } else {
-                log.warn("No history found to synchronize time for User {} and Track {}", request.userId(), request.trackId());
+                // CHƯA CÓ LỊCH SỬ (Nghe lần đầu) -> TẠO MỚI
+                log.info("Chưa có lịch sử, đang tạo mới cho User {} và Track {} tại giây {}",
+                        request.userId(), request.trackId(), request.position());
+
+                History newHistory = new History();
+                Track trackRef = trackRepository.getReferenceById(request.trackId());
+                User userRef = userRepository.getReferenceById(request.userId());
+
+                newHistory.setTrack(trackRef);
+                newHistory.setUser(userRef);
+                newHistory.setListenedAt(LocalDateTime.now());
+                newHistory.setPlaybackPosition(request.position());
+
+                historyRepository.save(newHistory);
             }
         } catch (Exception e) {
             log.error("Time synchronization error for Track {}: {}", request.trackId(), e.getMessage());
@@ -80,8 +96,7 @@ public class TrackingServiceImpl implements ITrackingService{
             Integer userId,
             Pageable pageable) {
 
-        Page<History> histories =
-                historyRepository.findByUserId(userId, pageable);
+        Page<History> histories = historyRepository.findDistinctHistoryByUserId(userId, pageable);
 
         return histories.map(history -> {
             Track track = history.getTrack();
@@ -94,7 +109,8 @@ public class TrackingServiceImpl implements ITrackingService{
                     track.getFilePath(),
                     track.getPreviewPath(),
                     track.getViewCount(),
-                    track.getUploadDate()
+                    track.getUploadDate(),
+                    history.getPlaybackPosition()
             );
         });
     }
