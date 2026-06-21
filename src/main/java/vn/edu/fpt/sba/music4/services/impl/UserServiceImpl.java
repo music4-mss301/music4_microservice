@@ -1,5 +1,9 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -9,14 +13,19 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.request.UserRequest;
 import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
+import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.enums.ERole;
+import vn.edu.fpt.sba.music4.exceptions.AccessDeniedException;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.IUserService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
+import vn.edu.fpt.sba.music4.util.SecurityUtil;
 
 import java.io.IOException;
+import java.security.Principal;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -82,6 +91,15 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
 
     @Override
     public UserResponseDTO update(Integer id, UserRequest userRequest) {
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        int loggedId = SecurityUtil.getCurrentId();
+
+        if (loggedId != id) {
+            throw new AccessDeniedException("You can only update your own profile");
+        }
+
         User user = this.userRepository.findById(id).map((u) -> {
                     if(userRequest.name() != null && !userRequest.name().isBlank()) {
                         u.setName(userRequest.name());
@@ -105,4 +123,16 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
         return toResponseDto(user);
     }
+
+    @Override
+    public Page<UserResponseDTO> getAll(Pageable pageable) {
+        return this.userRepository.findAll(pageable).map(this::toResponseDto);
+    }
+
+    @Override
+    public int getTotalUsers() {
+        return Math.toIntExact(this.userRepository.count());
+    }
+
+
 }

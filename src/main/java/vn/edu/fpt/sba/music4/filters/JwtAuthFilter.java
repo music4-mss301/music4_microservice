@@ -39,10 +39,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token    = header.substring(7);
         String username = jwtUtil.extractUsername(token);
-        String source   = jwtUtil.extractSource(token);  // "user" | "artist"
+        String source   = jwtUtil.extractSource(token);
 
 
         if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+
             UserDetails user = "artist".equals(source)
                     ? artistDetailsService.loadUserByUsername(username)
                     : userDetailsService.loadUserByUsername(username);

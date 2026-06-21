@@ -2,6 +2,8 @@ package vn.edu.fpt.sba.music4.services.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -74,26 +76,27 @@ public class TrackingServiceImpl implements ITrackingService{
 
     @Override
     @Transactional(readOnly = true)
-    public List<TrackResponseDTO> getListeningHistory(Integer userId) {
-        // Lấy lịch sử từ DB, có thể thêm limit() để lấy top 20 bài gần nhất
-        List<History> histories = historyRepository.findByUserId(userId);
+    public Page<TrackResponseDTO> getListeningHistory(
+            Integer userId,
+            Pageable pageable) {
 
-        return histories.stream()
-                .sorted((h1, h2) -> h2.getListenedAt().compareTo(h1.getListenedAt())) // Sắp xếp mới nhất lên đầu
-                .map(history -> {
-                    Track track = history.getTrack();
-                    return new TrackResponseDTO(
-                            track.getId(),
-                            track.getName(),
-                            track.getImg(),
-                            track.getDuration(),
-                            track.getFilePath(),
-                            track.getPreviewPath(),
-                            track.getViewCount(),
-                            track.getUploadDate()
-                    );
-                })
-                .toList();
+        Page<History> histories =
+                historyRepository.findByUserId(userId, pageable);
+
+        return histories.map(history -> {
+            Track track = history.getTrack();
+
+            return new TrackResponseDTO(
+                    track.getId(),
+                    track.getName(),
+                    track.getImg(),
+                    track.getDuration(),
+                    track.getFilePath(),
+                    track.getPreviewPath(),
+                    track.getViewCount(),
+                    track.getUploadDate()
+            );
+        });
     }
 
 }

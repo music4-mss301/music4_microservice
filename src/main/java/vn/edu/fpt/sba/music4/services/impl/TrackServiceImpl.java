@@ -46,13 +46,15 @@ public class TrackServiceImpl implements ITrackService {
     // private FileStorageService fileStorageService; // Gọi ké service của Thành viên 1[cite: 7]
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TrackDetailResponseDTO uploadTrack(MultipartFile audioFile, MultipartFile coverImage, TrackUploadDTO dto) {
+    public TrackDetailResponseDTO uploadTrack(MultipartFile audioFile, MultipartFile coverImage, TrackUploadDTO dto, String currentUsername) {
         // 🚨 Business Rule: Chặn ngay nếu không có ảnh bìa
         if (coverImage == null || coverImage.isEmpty()) {
             throw new IllegalArgumentException("Ảnh bìa là bắt buộc! Vui lòng đính kèm ảnh bìa.");
         }
 
         try {
+            Artist mainArtist = artistRepository.findByUsername(currentUsername);
+            Integer loggedInArtistId = mainArtist.getId();
             // 1. Upload file lên AWS S3
             String imageS3Key = awsUtil.uploadFile(coverImage, "images");
             String audioS3Key = awsUtil.uploadFile(audioFile, "tracks");
@@ -84,9 +86,7 @@ public class TrackServiceImpl implements ITrackService {
             java.util.List<Integer> finalArtistIds = new java.util.ArrayList<>();
 
             // Ưu tiên nạp artistId lẻ (ca sĩ chính) vào vị trí đầu tiên để gán vai trò "MAIN"
-            if (dto.getArtistId() != null) {
-                finalArtistIds.add(dto.getArtistId());
-            }
+            finalArtistIds.add(loggedInArtistId);
 
             // Nếu có truyền thêm danh sách artistIds, tiến hành nạp tiếp và lọc trùng dữ liệu
             if (dto.getArtistIds() != null && !dto.getArtistIds().isEmpty()) {

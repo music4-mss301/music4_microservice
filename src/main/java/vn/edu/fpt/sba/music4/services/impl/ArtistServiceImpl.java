@@ -1,6 +1,8 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -36,9 +38,12 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
 
     @Override
     @Transactional(readOnly = true)
-    public Artist getArtistById(Integer id) {
-        return artistRepository.findById(id)
+    public ArtistResponseDTO getArtistById(Integer id) { // 🟢 Đổi kiểu trả về ở đây
+        Artist artist = artistRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Nghệ sĩ với ID: " + id));
+
+        // 🟢 Gọi hàm map sang DTO để loại bỏ dữ liệu nhạy cảm & chống lặp JSON
+        return toResponseDto(artist);
     }
 
     public ArtistResponseDTO toResponseDto(Artist artist) {
@@ -57,11 +62,9 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<ArtistResponseDTO> getAllArtists() {
-        return artistRepository.findAll().stream()
-                .map(this::toResponseDto)
-                .toList();
+    public Page<ArtistResponseDTO> getAllArtists(Pageable pageable) {
+        Page<Artist> artistPage = artistRepository.findAll(pageable);
+        return artistPage.map(artist -> this.toResponseDto(artist));
     }
 
     @Override
@@ -146,5 +149,10 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
 
         Artist updatedArtist = artistRepository.save(artist);
         return toResponseDto(updatedArtist);
+    }
+
+    @Override
+    public long countTotalArtists() {
+        return artistRepository.count();
     }
 }

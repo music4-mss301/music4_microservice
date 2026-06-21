@@ -46,7 +46,6 @@ public class JwtUtil {
     public String extractSource(String token) {
         return claims(token).get("source", String.class);
     }
-
     public boolean isValid(String token, UserDetails user) {
         return extractUsername(token).equals(user.getUsername())
                 && !claims(token).getExpiration().before(new Date());

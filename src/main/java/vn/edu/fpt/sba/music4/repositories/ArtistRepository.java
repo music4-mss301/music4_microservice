@@ -36,4 +36,7 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
             countQuery = "SELECT COUNT(*) FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%'",
             nativeQuery = true)
     Page<Artist> searchByName(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query("SELECT a FROM Artist a WHERE a.userName = :username")
+    Artist findByUsername (String username);
 }

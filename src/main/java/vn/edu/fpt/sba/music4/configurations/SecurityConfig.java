@@ -82,7 +82,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
 
         // Cho phép đầy đủ các phương thức RESTful API phổ biến
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"));
 
         // Chấp nhận các tiêu đề thông tin bắt buộc gồm chuỗi Token mã hóa Bearer
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Cache-Control"));
