@@ -35,4 +35,9 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
 
     // Use for History pagination
     Page<History> findByUserId(Integer userId, Pageable pageable);
+
+    @Query("SELECT h FROM History h WHERE h.id IN " +
+            "(SELECT MAX(h2.id) FROM History h2 WHERE h2.user.id = :userId GROUP BY h2.track.id) " +
+            "ORDER BY h.listenedAt DESC")
+    Page<History> findDistinctHistoryByUserId(@Param("userId") Integer userId, Pageable pageable);
 }
