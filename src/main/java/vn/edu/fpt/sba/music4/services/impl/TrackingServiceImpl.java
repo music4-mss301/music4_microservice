@@ -115,4 +115,16 @@ public class TrackingServiceImpl implements ITrackingService{
         });
     }
 
+    @Override
+    @Transactional
+    public void cleanupHistory() {
+        try {
+            LocalDateTime sixMonthsAgo = LocalDateTime.now().minusMonths(1);
+            historyRepository.cleanupGarbageHistory(sixMonthsAgo);
+            log.info("[CLEANUP] Đã dọn dẹp thành công các lịch sử rác (nghe < 5s hoặc cũ hơn 1 tháng).");
+        } catch (Exception e) {
+            log.error("[CLEANUP] Lỗi khi dọn dẹp lịch sử rác: {}", e.getMessage());
+        }
+    }
+
 }
