@@ -14,6 +14,8 @@ public interface IArtistService {
 
     Page<ArtistResponseDTO> getAllArtists(Pageable pageable);
 
+    List<ArtistResponseDTO> getAllArtists();
+
     Artist save(RegistrationRequest registrationRequest);
 
     ArtistResponseDTO update(Integer artistId, ArtistRequestDTO artistRequest);

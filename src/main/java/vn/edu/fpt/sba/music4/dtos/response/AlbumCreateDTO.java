@@ -6,6 +6,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 public record AlbumCreateDTO(
         @NotBlank String albumTitle,
-        MultipartFile coverImageKey,
+        String coverImageKey,
         @NotNull Integer artistId
 ) {}
