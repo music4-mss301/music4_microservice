@@ -54,6 +54,7 @@ public class CategoryServiceImpl implements ICategoryService {
                     return new TrackResponseDTO(
                             track.getId(),
                             track.getName(),
+                            track.getAlbum().getName(),
                             track.getImg(),
                             track.getDuration(),
                             track.getFilePath(),

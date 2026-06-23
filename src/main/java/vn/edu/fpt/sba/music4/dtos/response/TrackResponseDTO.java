@@ -5,10 +5,11 @@ import java.time.LocalDate;
 public record TrackResponseDTO(
         Integer id,
         String name,
+        String title,
         String img,
         Integer duration,
         String filePath,
-        String previewPath, // Giúp Frontend gắn vào thẻ <audio> để phát thử nhạc
+        String previewPath,
         Integer viewCount,
         LocalDate uploadDate,
         Integer playbackPosition
