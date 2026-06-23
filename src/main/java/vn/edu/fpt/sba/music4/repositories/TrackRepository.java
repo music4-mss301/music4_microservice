@@ -37,4 +37,14 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
     List<Track> findByAlbumId(Integer albumId);
     int countByAlbumId(Integer albumId);
     List<Track> findTop5ByOrderByViewCountDesc();
+
+    // Nếu 1 bài hát có thể có nhiều Artist collab (Many-to-Many)
+    @Query("SELECT t FROM Track t JOIN t.trackArtists ta WHERE ta.artist.id = :artistId")
+    List<Track> findTracksByArtistId(@Param("artistId") Integer artistId);
+
+    @Query("SELECT DISTINCT t FROM Track t " +
+            "LEFT JOIN FETCH t.album " + // Vẫn giữ Fetch Album để fix lỗi "no session" hôm nọ
+            "JOIN t.trackArtists ta " +   // 👈 JOIN vào bảng trung gian trackArtists
+            "WHERE ta.artist.id = :artistId") // 👈 Lọc ID ca sĩ từ bảng trung gian
+    List<Track> findTracksByArtistIdWithAlbum(@Param("artistId") Integer artistId);
 }

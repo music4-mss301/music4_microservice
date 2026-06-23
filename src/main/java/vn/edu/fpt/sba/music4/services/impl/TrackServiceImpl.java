@@ -291,6 +291,7 @@ public class TrackServiceImpl implements ITrackService {
         return new TrackResponseDTO(
                 track.getId(),
                 track.getName(),
+                track.getAlbum().getName(),
                 track.getImg(),
                 track.getDuration(),
                 track.getFilePath(),
@@ -525,6 +526,16 @@ public class TrackServiceImpl implements ITrackService {
             }
         }
 
+        if (track.getFilePath() != null) {
+            awsUtil.deleteFile(track.getFilePath());      // Xóa file âm thanh (.mp3/.wav)
+        }
+        if (track.getPreviewPath() != null) {
+            awsUtil.deleteFile(track.getPreviewPath());      // Xóa file âm thanh (.mp3/.wav)
+        }
+        if (track.getImg() != null) {
+            awsUtil.deleteFile(track.getImg()); // Xóa file ảnh bìa bài hát
+        }
+
         // 3. Tiến hành xóa bài hát (Cascade sẽ tự động dọn dẹp liên kết ở các bảng trung gian)
         trackRepository.delete(track);
     }
@@ -630,6 +641,28 @@ public class TrackServiceImpl implements ITrackService {
         // 2. Chuyển đổi List<Track> sang List<TrackResponseDTO>
         return topTracks.stream()
                 .map(this::toDetailResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<TrackResponseDTO> getTracksByArtistId(Integer artistId) {
+        // 1. Gọi Repo mới có JOIN FETCH
+        List<Track> tracks = trackRepository.findTracksByArtistIdWithAlbum(artistId);
+
+        // 2. Chuyển đổi sang DTO an toàn
+        return tracks.stream()
+                .map(track -> new TrackResponseDTO(
+                        track.getId(),
+                        track.getName(),
+                        // Phòng hờ nếu bài hát đơn lẻ không thuộc album nào (tránh lỗi NullPointerException)
+                        track.getAlbum() != null ? track.getAlbum().getName() : "Single",
+                        track.getImg(),
+                        track.getDuration(),
+                        track.getFilePath(),
+                        track.getPreviewPath(),
+                        track.getViewCount(),
+                        track.getUploadDate()
+                ))
                 .toList();
     }
 }
