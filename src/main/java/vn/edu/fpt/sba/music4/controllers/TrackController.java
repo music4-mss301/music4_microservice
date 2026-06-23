@@ -57,16 +57,20 @@ public class TrackController {
             @RequestParam("audioFile") MultipartFile audioFile,
             @RequestParam("coverImage") MultipartFile coverImage,
             @ModelAttribute @Valid TrackUploadDTO dto) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String currentUsername = userDetails.getUsername(); // Đây là username/email của ca sĩ
+         // Đây là username/email của ca sĩ
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        UserDetails userDetails =
+                (UserDetails) authentication.getPrincipal();
+//        String currentUsername = "artist1"; // Đây là username/email của ca sĩ
         if (audioFile == null || audioFile.isEmpty()) {
             throw new IllegalArgumentException("Lỗi: File âm thanh (audioFile) không được để trống!");
         }
         if (coverImage == null || coverImage.isEmpty()) {
             throw new IllegalArgumentException("Lỗi: File ảnh bìa (coverImage) không được để trống!");
         }
-        TrackDetailResponseDTO response = trackService.uploadTrack(audioFile, coverImage, dto, currentUsername);
+        TrackDetailResponseDTO response = trackService.uploadTrack(audioFile, coverImage, dto, userDetails.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

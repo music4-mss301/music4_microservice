@@ -6,6 +6,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.SyncTimeRequest;
@@ -18,7 +21,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/tracking")
 @RequiredArgsConstructor
-    @Tag(name = "Tracking & History API", description = "Các API xử lý ghi nhận lịch sử nghe nhạc và đồng bộ thời gian phát của người dùng")
+@Tag(name = "Tracking & History API", description = "Các API xử lý ghi nhận lịch sử nghe nhạc và đồng bộ thời gian phát của người dùng")
 public class TrackingController {
 
     private final ITrackingService trackingService;
@@ -52,7 +55,8 @@ public class TrackingController {
             @ApiResponse(responseCode = "200", description = "Lấy danh sách lịch sử thành công"),
             @ApiResponse(responseCode = "404", description = "Không tìm thấy thông tin người dùng")
     })
-    public ResponseEntity<List<TrackResponseDTO>> getHistory(@PathVariable Integer userId) {
-        return ResponseEntity.ok(trackingService.getListeningHistory(userId));
+    public ResponseEntity<Page<TrackResponseDTO>> getHistory(@PathVariable Integer userId,
+                                                             @PageableDefault(size = 20, page = 0) Pageable pageable) {
+        return ResponseEntity.ok(trackingService.getListeningHistory(userId, pageable));
     }
 }

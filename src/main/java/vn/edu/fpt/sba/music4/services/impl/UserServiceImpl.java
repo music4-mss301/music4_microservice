@@ -13,12 +13,15 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.request.UserRequest;
 import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
+import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.enums.ERole;
+import vn.edu.fpt.sba.music4.exceptions.AccessDeniedException;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.IUserService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
+import vn.edu.fpt.sba.music4.util.SecurityUtil;
 
 import java.io.IOException;
 import java.security.Principal;
@@ -91,10 +94,11 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
-        UserDetails userDetails =
-                (UserDetails) authentication.getPrincipal();
+        int loggedId = SecurityUtil.getCurrentId();
 
-        System.out.println("Current user: " + userDetails.getUsername() + " - " + userDetails.getAuthorities());
+        if (loggedId != id) {
+            throw new AccessDeniedException("You can only update your own profile");
+        }
 
         User user = this.userRepository.findById(id).map((u) -> {
                     if(userRequest.name() != null && !userRequest.name().isBlank()) {
@@ -123,6 +127,11 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
     @Override
     public Page<UserResponseDTO> getAll(Pageable pageable) {
         return this.userRepository.findAll(pageable).map(this::toResponseDto);
+    }
+
+    @Override
+    public int getTotalUsers() {
+        return Math.toIntExact(this.userRepository.count());
     }
 
 
