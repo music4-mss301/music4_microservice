@@ -10,6 +10,7 @@ import vn.edu.fpt.sba.music4.entities.Artist;
 
 import java.util.List;
 
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -39,4 +40,17 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     @Query("SELECT a FROM Artist a WHERE a.userName = :username")
     Artist findByUsername (String username);
+
+    
+    @Query(value = "SELECT TOP 3 id, name, img, followers, favorites, trackTotal " +
+            "FROM (" +
+            "    SELECT a.id as id, a.name as name, a.img as img, " +
+            "    (SELECT COUNT(f.id) FROM FOLLOWS f WHERE f.artist_id = a.id) as followers, " +
+            "    (SELECT COUNT(fav.id) FROM FAVORITES fav JOIN TRACK_ARTISTS ta ON fav.track_id = ta.track_id WHERE ta.artist_id = a.id) as favorites, " +
+            "    a.track_total as trackTotal " +
+            "    FROM ARTISTS a" +
+            ") AS ArtistStats " +
+            "ORDER BY (followers + favorites) DESC, trackTotal DESC",
+            nativeQuery = true)
+    List<Map<String, Object>> getTop3Artists();
 }

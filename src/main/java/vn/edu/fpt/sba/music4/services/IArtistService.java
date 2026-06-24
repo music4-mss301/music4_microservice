@@ -8,6 +8,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
 
 public interface IArtistService {
     ArtistResponseDTO getArtistById(Integer id);
@@ -21,4 +22,6 @@ public interface IArtistService {
     ArtistResponseDTO update(Integer artistId, ArtistRequestDTO artistRequest);
 
     long countTotalArtists();
+
+    List<Map<String, Object>> getTop3Artists();
 }

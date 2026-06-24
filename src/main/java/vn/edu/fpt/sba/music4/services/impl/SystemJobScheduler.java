@@ -2,6 +2,7 @@ package vn.edu.fpt.sba.music4.services.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,12 @@ public class SystemJobScheduler {
     private final IRecommendationService recommendationService;
     private final ITrackingService trackingService;
     private final RestTemplate restTemplate;
+
+    @Value("${ai.service.url:http://ai-service:8000}")
+    private String aiServiceUrl;
+
+    @Value("${elasticsearch.url:http://elasticsearch:9200}")
+    private String elasticsearchUrl;
 
     @Scheduled(cron = "0 0 2 * * ?")
 //    @Scheduled(fixedRate = 60000)
@@ -38,7 +45,7 @@ public class SystemJobScheduler {
 
         // Kiểm tra Python AI
         try {
-            ResponseEntity<String> pythonHealth = restTemplate.getForEntity("http://127.0.0.1:8000/", String.class);
+            ResponseEntity<String> pythonHealth = restTemplate.getForEntity(aiServiceUrl, String.class);
             if (pythonHealth.getStatusCode().is2xxSuccessful()) {
                 log.info("[OK] Python AI Microservice đang hoạt động tốt.");
             }
@@ -48,7 +55,7 @@ public class SystemJobScheduler {
 
         // Kiểm tra Elasticsearch
         try {
-            ResponseEntity<String> esHealth = restTemplate.getForEntity("http://127.0.0.1:9200/", String.class);
+            ResponseEntity<String> esHealth = restTemplate.getForEntity(elasticsearchUrl, String.class);
             if (esHealth.getStatusCode().is2xxSuccessful()) {
                 log.info("[OK] Elasticsearch Database đang hoạt động tốt.");
             }
