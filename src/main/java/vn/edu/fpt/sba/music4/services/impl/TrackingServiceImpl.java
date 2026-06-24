@@ -104,7 +104,7 @@ public class TrackingServiceImpl implements ITrackingService{
             return new TrackResponseDTO(
                     track.getId(),
                     track.getName(),
-                    track.getAlbum().getName(),
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Song",
                     track.getImg(),
                     track.getDuration(),
                     track.getFilePath(),
