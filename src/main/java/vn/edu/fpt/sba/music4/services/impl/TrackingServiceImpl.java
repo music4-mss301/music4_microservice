@@ -36,14 +36,26 @@ public class TrackingServiceImpl implements ITrackingService{
     @Override
     @Async("trackingExecutor")
     @Transactional
-    public void recordPlayHistory(Integer trackId, Integer userId) {
+    public void recordPlayHistory(Integer trackId, Integer userId, String currentUsername) {
         try {
-            trackRepository.incrementViewCount(trackId);
+            Track track = trackRepository.findById(trackId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát"));
+
+            boolean isCreator = false;
+            if (currentUsername != null && !currentUsername.equals("anonymousUser")) {
+                isCreator = track.getTrackArtists().stream()
+                        .anyMatch(ta -> ta.getArtist().getUsername().equals(currentUsername));
+            }
+
+            if (!isCreator) {
+                trackRepository.incrementViewCount(trackId);
+                log.info("Đã cộng 1 view cho bài hát {}", trackId);
+            } else {
+                log.info("BỎ QUA CỘNG VIEW: User {} chính là tác giả của Track {}", currentUsername, trackId);
+            }
 
             History history = new History();
-
-            Track trackRef = trackRepository.getReferenceById(trackId);
-            history.setTrack(trackRef);
+            history.setTrack(track);
 
             if (userId != null) {
                 User userRef = userRepository.getReferenceById(userId);
@@ -53,9 +65,9 @@ public class TrackingServiceImpl implements ITrackingService{
             history.setListenedAt(LocalDateTime.now());
             historyRepository.save(history);
 
-            log.info("Recorded history for Track {} by User {}", trackId, userId);
+            log.info("Lịch sử ghi lại cho bài hát {} do người dùng {}", trackId, userId);
         } catch (Exception e) {
-            log.error("Error recording play history for Track {}: {}", trackId, e.getMessage());
+            log.error("Lỗi khi ghi lại lịch sử phát nhạc cho bài hát {}: {}", trackId, e.getMessage());
         }
     }
 
@@ -89,7 +101,7 @@ public class TrackingServiceImpl implements ITrackingService{
                 historyRepository.save(newHistory);
             }
         } catch (Exception e) {
-            log.error("Time synchronization error for Track {}: {}", request.trackId(), e.getMessage());
+            log.error("Lỗi đồng bộ thời gian cho bài hát {}: {}", request.trackId(), e.getMessage());
         }
     }
 

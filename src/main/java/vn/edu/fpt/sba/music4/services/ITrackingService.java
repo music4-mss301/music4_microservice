@@ -9,7 +9,7 @@ import java.util.List;
 
 public interface ITrackingService {
 
-    void recordPlayHistory(Integer trackId, Integer userId);
+    void recordPlayHistory(Integer trackId, Integer userId, String currentUsername);
 
     void syncPlaybackPosition(SyncTimeRequest request);
 
