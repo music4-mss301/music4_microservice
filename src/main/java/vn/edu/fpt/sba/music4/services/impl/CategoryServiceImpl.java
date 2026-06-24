@@ -4,11 +4,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryDetailResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Category;
 import vn.edu.fpt.sba.music4.entities.Track;
+import vn.edu.fpt.sba.music4.entities.TrackCategory;
 import vn.edu.fpt.sba.music4.exceptions.BusinessException;
 import vn.edu.fpt.sba.music4.repositories.CategoryRepository;
+import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackCategoryRepository;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
 
@@ -18,12 +21,15 @@ import java.util.stream.Collectors;
 
 @Service
 public class CategoryServiceImpl implements ICategoryService {
-    private CategoryRepository categoryRepository;
-    private TrackCategoryRepository trackCategoryRepository;
+    private final CategoryRepository categoryRepository;
+    private final TrackCategoryRepository trackCategoryRepository;
+    private final TrackArtistRepository trackArtistRepository;
 
-    public CategoryServiceImpl(CategoryRepository categoryRepository, TrackCategoryRepository trackCategoryRepository) {
+
+    public CategoryServiceImpl(CategoryRepository categoryRepository, TrackCategoryRepository trackCategoryRepository, TrackArtistRepository trackArtistRepository) {
         this.categoryRepository = categoryRepository;
         this.trackCategoryRepository = trackCategoryRepository;
+        this.trackArtistRepository = trackArtistRepository;
     }
 
     public CategoryResponseDTO toResponseDto(Category category) {
@@ -48,24 +54,32 @@ public class CategoryServiceImpl implements ICategoryService {
     public CategoryDetailResponseDTO getCategoryById(Integer id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy thể loại với ID: " + id));
-        List<TrackResponseDTO> trackDtos = category.getTrackCategories().stream()
-                .map(trackCategory -> {
-                    Track track = trackCategory.getTrack();
-                    // Map thủ công hoặc dùng Mapper để biến đổi từ Track sang TrackResponseDTO
-                    return new TrackResponseDTO(
-                            track.getId(),
-                            track.getName(),
-                            track.getAlbum().getName(),
-                            track.getImg(),
-                            track.getDuration(),
-                            track.getFilePath(),
-                            track.getPreviewPath(),
-                            track.getViewCount(),
-                            track.getUploadDate(),
-                            null
-                    );
-                })
-                .collect(Collectors.toList());
+
+        List<Track> tracks = trackCategoryRepository.findByCategoryId(id).stream()
+                .map(TrackCategory::getTrack)
+                .toList();
+
+        List<TrackResponseDTO> trackDtos = tracks.stream().map(track -> {
+            List<TrackArtistInfo> artists = trackArtistRepository.findByTrackId(track.getId())
+                    .stream()
+                    .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
+                    .toList();
+
+            return new TrackResponseDTO(
+                    track.getId(),
+                    track.getName(),
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Single",
+                    track.getImg(),
+                    track.getDuration(),
+                    track.getFilePath(),
+                    track.getPreviewPath(),
+                    track.getViewCount(),
+                    track.getUploadDate(),
+                    null,
+                    artists
+            );
+        }).toList();
+
         return new CategoryDetailResponseDTO(category.getId(), category.getName(), trackDtos);
     }
 
