@@ -230,7 +230,7 @@ public class TrackServiceImpl implements ITrackService {
         if (track.getAlbum() != null) {
             albumDTO = new AlbumResponseDTO(
                     track.getAlbum().getId(),
-                    track.getAlbum().getName(),
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Song",
                     track.getAlbum().getImg(),
                     track.getAlbum().getUploadDate(),
                     track.getAlbum().getTrackTotal(),
@@ -291,7 +291,7 @@ public class TrackServiceImpl implements ITrackService {
         return new TrackResponseDTO(
                 track.getId(),
                 track.getName(),
-                track.getAlbum().getName(),
+                track.getAlbum() != null ? track.getAlbum().getName() : "Song",
                 track.getImg(),
                 track.getDuration(),
                 track.getFilePath(),
@@ -535,6 +535,13 @@ public class TrackServiceImpl implements ITrackService {
         }
         if (track.getImg() != null) {
             awsUtil.deleteFile(track.getImg()); // Xóa file ảnh bìa bài hát
+        }
+
+        if (track.getAlbum() != null) {
+            Album album = track.getAlbum();
+            int currentTotal = trackRepository.countByAlbumId(album.getId());
+            album.setTrackTotal(currentTotal);
+            albumRepository.save(album);
         }
 
         // 3. Tiến hành xóa bài hát (Cascade sẽ tự động dọn dẹp liên kết ở các bảng trung gian)
