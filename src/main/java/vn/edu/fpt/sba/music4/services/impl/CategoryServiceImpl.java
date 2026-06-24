@@ -13,6 +13,7 @@ import vn.edu.fpt.sba.music4.repositories.TrackCategoryRepository;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -111,5 +112,10 @@ public class CategoryServiceImpl implements ICategoryService {
         }
 
         categoryRepository.delete(category);
+    }
+
+    @Override
+    public List<Map<String, Object>> getCategoryStats() {
+        return categoryRepository.getCategoryStats();
     }
 }

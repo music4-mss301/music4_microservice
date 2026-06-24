@@ -13,6 +13,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/artists")
@@ -40,6 +41,7 @@ public class ArtistController {
     public ArtistResponseDTO updateArtist(@PathVariable Integer id, @ModelAttribute ArtistRequestDTO artistRequest) {
         return iArtistService.update(id, artistRequest);
     }
+
     @GetMapping("/{id}")
     public ResponseEntity<ArtistResponseDTO> getArtistById(@PathVariable Integer id) {
         return ResponseEntity.ok(iArtistService.getArtistById(id));
@@ -49,5 +51,11 @@ public class ArtistController {
     public ResponseEntity<Long> getTotalArtistCount() {
         long total = iArtistService.countTotalArtists();
         return ResponseEntity.ok(total);
+    }
+
+    @GetMapping("/top3")
+    public ResponseEntity<List<Map<String, Object>>> getTop3Artists() {
+        // Giả định bạn đã tạo hàm getTop3Artists() trong IArtistService
+        return ResponseEntity.ok(iArtistService.getTop3Artists());
     }
 }
