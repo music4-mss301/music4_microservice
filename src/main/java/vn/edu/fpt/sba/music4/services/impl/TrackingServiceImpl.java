@@ -8,11 +8,13 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.request.SyncTimeRequest;
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.History;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.repositories.HistoryRepository;
+import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.ITrackingService;
@@ -29,6 +31,7 @@ public class TrackingServiceImpl implements ITrackingService{
     private final TrackRepository trackRepository;
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
+    private final TrackArtistRepository trackArtistRepository;
 
     @Override
     @Async("trackingExecutor")
@@ -101,17 +104,26 @@ public class TrackingServiceImpl implements ITrackingService{
         return histories.map(history -> {
             Track track = history.getTrack();
 
+            List<TrackArtistInfo> artistList = trackArtistRepository.findByTrackId(track.getId())
+                    .stream()
+                    .map(ta -> new TrackArtistInfo(
+                            ta.getArtist().getId(),
+                            ta.getArtist().getName(),
+                            ta.getRole()
+                    )).toList();
+
             return new TrackResponseDTO(
                     track.getId(),
                     track.getName(),
-                    track.getAlbum() != null ? track.getAlbum().getName() : "Song",
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Single",
                     track.getImg(),
                     track.getDuration(),
                     track.getFilePath(),
                     track.getPreviewPath(),
                     track.getViewCount(),
                     track.getUploadDate(),
-                    history.getPlaybackPosition()
+                    history.getPlaybackPosition(),
+                    artistList
             );
         });
     }
@@ -120,8 +132,8 @@ public class TrackingServiceImpl implements ITrackingService{
     @Transactional
     public void cleanupHistory() {
         try {
-            LocalDateTime sixMonthsAgo = LocalDateTime.now().minusMonths(1);
-            historyRepository.cleanupGarbageHistory(sixMonthsAgo);
+            LocalDateTime oneMonthsAgo = LocalDateTime.now().minusMonths(1);
+            historyRepository.cleanupGarbageHistory(oneMonthsAgo);
             log.info("[CLEANUP] Đã dọn dẹp thành công các lịch sử rác (nghe < 5s hoặc cũ hơn 1 tháng).");
         } catch (Exception e) {
             log.error("[CLEANUP] Lỗi khi dọn dẹp lịch sử rác: {}", e.getMessage());
