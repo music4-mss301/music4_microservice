@@ -2,6 +2,8 @@ package vn.edu.fpt.sba.music4.services.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,7 +16,7 @@ import vn.edu.fpt.sba.music4.repositories.HistoryRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.ITrackingService;
-import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -62,10 +64,26 @@ public class TrackingServiceImpl implements ITrackingService{
                     .findTopByUserIdAndTrackIdOrderByListenedAtDesc(request.userId(), request.trackId());
 
             if (latestHistory.isPresent()) {
+                // Đã có lịch sử -> Chỉ cần cập nhật thời gian
                 History history = latestHistory.get();
                 history.setPlaybackPosition(request.position());
+
+                historyRepository.save(history);
             } else {
-                log.warn("No history found to synchronize time for User {} and Track {}", request.userId(), request.trackId());
+                // CHƯA CÓ LỊCH SỬ (Nghe lần đầu) -> TẠO MỚI
+                log.info("Chưa có lịch sử, đang tạo mới cho User {} và Track {} tại giây {}",
+                        request.userId(), request.trackId(), request.position());
+
+                History newHistory = new History();
+                Track trackRef = trackRepository.getReferenceById(request.trackId());
+                User userRef = userRepository.getReferenceById(request.userId());
+
+                newHistory.setTrack(trackRef);
+                newHistory.setUser(userRef);
+                newHistory.setListenedAt(LocalDateTime.now());
+                newHistory.setPlaybackPosition(request.position());
+
+                historyRepository.save(newHistory);
             }
         } catch (Exception e) {
             log.error("Time synchronization error for Track {}: {}", request.trackId(), e.getMessage());
@@ -74,37 +92,40 @@ public class TrackingServiceImpl implements ITrackingService{
 
     @Override
     @Transactional(readOnly = true)
-    public List<TrackResponseDTO> getListeningHistory(Integer userId) {
-        // Lấy lịch sử từ DB, có thể thêm limit() để lấy top 20 bài gần nhất
-        List<History> histories = historyRepository.findByUserId(userId);
+    public Page<TrackResponseDTO> getListeningHistory(
+            Integer userId,
+            Pageable pageable) {
 
-        return histories.stream()
-                .sorted((h1, h2) -> h2.getListenedAt().compareTo(h1.getListenedAt())) // Sắp xếp mới nhất lên đầu
-                .map(history -> {
-                    Track track = history.getTrack();
+        Page<History> histories = historyRepository.findDistinctHistoryByUserId(userId, pageable);
 
-                    // 🟢 BƯỚC MỚI: Bóc tách danh sách nghệ sĩ từ bảng trung gian
-                    List<TrackArtistInfo> artistList = track.getTrackArtists() != null ?
-                            track.getTrackArtists().stream()
-                                    .map(ta -> new TrackArtistInfo(
-                                            ta.getArtist().getId(),
-                                            ta.getArtist().getName(),
-                                            ta.getRole()
-                                    )).toList() : List.of();
+        return histories.map(history -> {
+            Track track = history.getTrack();
 
-                    return new TrackResponseDTO(
-                            track.getId(),
-                            track.getName(),
-                            track.getImg(),
-                            track.getDuration(),
-                            track.getFilePath(),
-                            track.getPreviewPath(),
-                            track.getViewCount(),
-                            track.getUploadDate(),
-                            artistList // 🟢 Truyền danh sách nghệ sĩ vào tham số thứ 9
-                    );
-                })
-                .toList();
+            return new TrackResponseDTO(
+                    track.getId(),
+                    track.getName(),
+                    track.getAlbum().getName(),
+                    track.getImg(),
+                    track.getDuration(),
+                    track.getFilePath(),
+                    track.getPreviewPath(),
+                    track.getViewCount(),
+                    track.getUploadDate(),
+                    history.getPlaybackPosition()
+            );
+        });
+    }
+
+    @Override
+    @Transactional
+    public void cleanupHistory() {
+        try {
+            LocalDateTime sixMonthsAgo = LocalDateTime.now().minusMonths(1);
+            historyRepository.cleanupGarbageHistory(sixMonthsAgo);
+            log.info("[CLEANUP] Đã dọn dẹp thành công các lịch sử rác (nghe < 5s hoặc cũ hơn 1 tháng).");
+        } catch (Exception e) {
+            log.error("[CLEANUP] Lỗi khi dọn dẹp lịch sử rác: {}", e.getMessage());
+        }
     }
 
 }

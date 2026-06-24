@@ -21,6 +21,11 @@ import java.util.Map;
 public class ArtistController {
     private final IArtistService iArtistService;
 
+    @GetMapping("/all")
+    public List<ArtistResponseDTO> getAllArtist() {
+        return iArtistService.getAllArtists();
+    }
+
     @GetMapping("")
     public Page<ArtistResponseDTO> getAllArtist(
             @RequestParam(defaultValue = "0") int page,

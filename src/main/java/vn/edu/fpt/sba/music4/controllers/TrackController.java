@@ -75,6 +75,7 @@ public class TrackController {
     }
 
     // ok
+    @CrossOrigin(origins = "http://localhost:5173")
     @PostMapping(value = "/upload-temp", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload file tạm thời lên S3", description = "Đẩy file lẻ lên S3 trước để lấy S3 Key và thời lượng nhạc (nếu là tracks)")
     public ResponseEntity<?> uploadTempFile(
@@ -220,5 +221,16 @@ public class TrackController {
     public ResponseEntity<List<TrackDetailResponseDTO>> getTop5MostViewedTracks() {
 
         return ResponseEntity.ok(trackService.getTop5MostViewedTracks());
+    }
+
+    // ok
+    @GetMapping("/artist/{artistId}")
+    @Operation(summary = "Lấy danh sách bài hát của một ca sĩ", description = "Trả về toàn bộ danh sách các bài hát thuộc về một nghệ sĩ cụ thể")
+    @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công")
+    public ResponseEntity<List<TrackResponseDTO>> getTracksByArtistId(
+            @Parameter(description = "ID của ca sĩ cần lấy bài hát", example = "1") @PathVariable Integer artistId) {
+
+        List<TrackResponseDTO> tracks = trackService.getTracksByArtistId(artistId);
+        return ResponseEntity.ok(tracks);
     }
 }

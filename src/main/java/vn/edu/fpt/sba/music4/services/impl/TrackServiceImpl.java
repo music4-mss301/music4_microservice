@@ -14,7 +14,6 @@ import vn.edu.fpt.sba.music4.util.AWSUtil;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -288,25 +287,18 @@ public class TrackServiceImpl implements ITrackService {
 
     public TrackResponseDTO toResponseDto(Track track) {
         if (track == null) return null;
-        List<TrackArtistInfo> artistList = List.of();
-        if (track.getTrackArtists() != null) {
-            artistList = track.getTrackArtists().stream()
-                    .map(ta -> new TrackArtistInfo(
-                            ta.getArtist().getId(),
-                            ta.getArtist().getName(),
-                            ta.getRole() // Vai trò MAIN hoặc FEAT
-                    )).toList();
-        }
+
         return new TrackResponseDTO(
                 track.getId(),
                 track.getName(),
+                track.getAlbum().getName(),
                 track.getImg(),
                 track.getDuration(),
                 track.getFilePath(),
                 track.getPreviewPath(),
                 track.getViewCount(),
                 track.getUploadDate(),
-                artistList
+                null
         );
     }
 
@@ -535,6 +527,16 @@ public class TrackServiceImpl implements ITrackService {
             }
         }
 
+        if (track.getFilePath() != null) {
+            awsUtil.deleteFile(track.getFilePath());      // Xóa file âm thanh (.mp3/.wav)
+        }
+        if (track.getPreviewPath() != null) {
+            awsUtil.deleteFile(track.getPreviewPath());      // Xóa file âm thanh (.mp3/.wav)
+        }
+        if (track.getImg() != null) {
+            awsUtil.deleteFile(track.getImg()); // Xóa file ảnh bìa bài hát
+        }
+
         // 3. Tiến hành xóa bài hát (Cascade sẽ tự động dọn dẹp liên kết ở các bảng trung gian)
         trackRepository.delete(track);
     }
@@ -643,4 +645,26 @@ public class TrackServiceImpl implements ITrackService {
                 .toList();
     }
 
+    @Override
+    public List<TrackResponseDTO> getTracksByArtistId(Integer artistId) {
+        // 1. Gọi Repo mới có JOIN FETCH
+        List<Track> tracks = trackRepository.findTracksByArtistIdWithAlbum(artistId);
+
+        // 2. Chuyển đổi sang DTO an toàn
+        return tracks.stream()
+                .map(track -> new TrackResponseDTO(
+                        track.getId(),
+                        track.getName(),
+                        // Phòng hờ nếu bài hát đơn lẻ không thuộc album nào (tránh lỗi NullPointerException)
+                        track.getAlbum() != null ? track.getAlbum().getName() : "Single",
+                        track.getImg(),
+                        track.getDuration(),
+                        track.getFilePath(),
+                        track.getPreviewPath(),
+                        track.getViewCount(),
+                        track.getUploadDate(),
+                        null
+                ))
+                .toList();
+    }
 }

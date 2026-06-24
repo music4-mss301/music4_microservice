@@ -63,6 +63,11 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     }
 
     @Override
+    public List<ArtistResponseDTO> getAllArtists() {
+        return artistRepository.findAll().stream().map(this::toResponseDto).toList();
+    }
+
+    @Override
     public Page<ArtistResponseDTO> getAllArtists(Pageable pageable) {
         Page<Artist> artistPage = artistRepository.findAll(pageable);
         return artistPage.map(artist -> this.toResponseDto(artist));

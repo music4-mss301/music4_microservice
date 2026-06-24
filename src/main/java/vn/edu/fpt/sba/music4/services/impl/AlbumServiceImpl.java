@@ -53,20 +53,27 @@ public class AlbumServiceImpl implements IAlbumService {
         Artist mainArtist = artistRepository.findById(dto.artistId())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy Ca sĩ ID: " + dto.artistId()));
 
-        // 2. Xử lý lưu file ảnh để lấy chuỗi Key/Path
+        // 2. Xử lý chuỗi Key/Path nhận từ Frontend gửi qua
         String savedImageKey = null;
-        if (dto.coverImageKey() != null && !dto.coverImageKey().isEmpty()) {
-            // 🔥 GỌI HÀM UPLOAD CỦA BẠN (Ví dụ upload lên S3 hoặc lưu vào thư mục local)
-            // savedImageKey = s3Service.uploadFile(dto.coverImageFile());
 
-            // Đoạn này tui giả định tên file để bạn dễ hình dung:
-            savedImageKey = "albums/covers/" + dto.coverImageKey().getOriginalFilename();
+        // Kiểm tra DTO gửi lên có dữ liệu hay không
+        if (dto.coverImageKey() != null && !dto.coverImageKey().trim().isEmpty()) {
+            savedImageKey = dto.coverImageKey();
+
+            // ✅ BẮT BUỘC NẰM TRONG KHỐI IF: Chỉ gọi startsWith khi savedImageKey CHẮC CHẮN KHÔNG NULL
+            if (!savedImageKey.startsWith("images/")) {
+                savedImageKey = "images/" + savedImageKey;
+            }
+        } else {
+            // 🔥 PHÒNG THỦ: Nếu trường hợp Frontend gửi lên chuỗi rỗng hoặc null,
+            // bồ có thể gán cho nó 1 cái ảnh mặc định để DB không bị trống trường img.
+            savedImageKey = "images/default-cover.png";
         }
 
-        // 3. Tạo Album mới và gán chuỗi Key vừa có vào
+        // 3. Tạo Album mới và gán chuỗi Key vào trường 'img'
         Album newAlbum = new Album();
         newAlbum.setName(dto.albumTitle());
-        newAlbum.setImg(savedImageKey); // 🔥 Lưu chuỗi String vào Database
+        newAlbum.setImg(savedImageKey); // Lưu chuỗi String sạch vào Database
         newAlbum.setArtist(mainArtist);
         newAlbum.setTrackTotal(0);
         newAlbum.setUploadDate(LocalDate.now());
