@@ -4,11 +4,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryDetailResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Category;
 import vn.edu.fpt.sba.music4.entities.Track;
+import vn.edu.fpt.sba.music4.entities.TrackArtist;
 import vn.edu.fpt.sba.music4.exceptions.BusinessException;
 import vn.edu.fpt.sba.music4.repositories.CategoryRepository;
+import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackCategoryRepository;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
 
@@ -20,10 +23,13 @@ import java.util.stream.Collectors;
 public class CategoryServiceImpl implements ICategoryService {
     private CategoryRepository categoryRepository;
     private TrackCategoryRepository trackCategoryRepository;
-
-    public CategoryServiceImpl(CategoryRepository categoryRepository, TrackCategoryRepository trackCategoryRepository) {
+    private TrackArtistRepository trackArtistRepository;
+    public CategoryServiceImpl(CategoryRepository categoryRepository,
+                               TrackCategoryRepository trackCategoryRepository,
+                               TrackArtistRepository trackArtistRepository) {
         this.categoryRepository = categoryRepository;
         this.trackCategoryRepository = trackCategoryRepository;
+        this.categoryRepository = categoryRepository;
     }
 
     public CategoryResponseDTO toResponseDto(Category category) {
@@ -51,6 +57,19 @@ public class CategoryServiceImpl implements ICategoryService {
         List<TrackResponseDTO> trackDtos = category.getTrackCategories().stream()
                 .map(trackCategory -> {
                     Track track = trackCategory.getTrack();
+                    List<TrackArtistInfo> artistList = List.of();
+
+// Gọi thẳng Repo bằng ID của bài hát
+                    List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackIdWithArtist(track.getId());
+
+                    if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
+                        artistList = dbTrackArtists.stream()
+                                .map(ta -> new TrackArtistInfo(
+                                        ta.getArtist().getId(),
+                                        ta.getArtist().getName(),
+                                        ta.getRole()
+                                )).toList();
+                    }
                     // Map thủ công hoặc dùng Mapper để biến đổi từ Track sang TrackResponseDTO
                     return new TrackResponseDTO(
                             track.getId(),
@@ -62,7 +81,8 @@ public class CategoryServiceImpl implements ICategoryService {
                             track.getPreviewPath(),
                             track.getViewCount(),
                             track.getUploadDate(),
-                            null
+                            null,
+                            artistList
                     );
                 })
                 .collect(Collectors.toList());

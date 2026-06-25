@@ -8,11 +8,14 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.request.SyncTimeRequest;
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.History;
 import vn.edu.fpt.sba.music4.entities.Track;
+import vn.edu.fpt.sba.music4.entities.TrackArtist;
 import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.repositories.HistoryRepository;
+import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.ITrackingService;
@@ -29,7 +32,7 @@ public class TrackingServiceImpl implements ITrackingService{
     private final TrackRepository trackRepository;
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
-
+    private final TrackArtistRepository trackArtistRepository;
     @Override
     @Async("trackingExecutor")
     @Transactional
@@ -100,18 +103,31 @@ public class TrackingServiceImpl implements ITrackingService{
 
         return histories.map(history -> {
             Track track = history.getTrack();
+            List<TrackArtistInfo> artists = List.of();
 
+// Gọi thẳng Repo bằng ID của bài hát
+            List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackIdWithArtist(track.getId());
+
+            if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
+                artists = dbTrackArtists.stream()
+                        .map(ta -> new TrackArtistInfo(
+                                ta.getArtist().getId(),
+                                ta.getArtist().getName(),
+                                ta.getRole()
+                        )).toList();
+            }
             return new TrackResponseDTO(
                     track.getId(),
                     track.getName(),
-                    track.getAlbum().getName(),
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Song",
                     track.getImg(),
                     track.getDuration(),
                     track.getFilePath(),
                     track.getPreviewPath(),
                     track.getViewCount(),
                     track.getUploadDate(),
-                    history.getPlaybackPosition()
+                    history.getPlaybackPosition(),
+                    artists
             );
         });
     }

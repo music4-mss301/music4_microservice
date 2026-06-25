@@ -287,18 +287,29 @@ public class TrackServiceImpl implements ITrackService {
 
     public TrackResponseDTO toResponseDto(Track track) {
         if (track == null) return null;
+        java.util.List<TrackArtistInfo> artistList = new java.util.ArrayList<>();
+        List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackId(track.getId());
 
+        if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
+            artistList = dbTrackArtists.stream()
+                    .map(ta -> new TrackArtistInfo(
+                            ta.getArtist().getId(),
+                            ta.getArtist().getName(),
+                            ta.getRole()
+                    )).toList();
+        }
         return new TrackResponseDTO(
                 track.getId(),
                 track.getName(),
-                track.getAlbum() != null ? track.getAlbum().getName() : "Song",
+                track.getAlbum() != null ? track.getAlbum().getName() : "Single",
                 track.getImg(),
                 track.getDuration(),
                 track.getFilePath(),
                 track.getPreviewPath(),
                 track.getViewCount(),
                 track.getUploadDate(),
-                null
+                null,       // Tham số thứ 10: playbackPosition (Ở API Search/Album thì mặc định cứ để null)
+                artistList  // Tham số thứ 11: Mảng nghệ sĩ bạn đã bốc tách được
         );
     }
 
@@ -468,13 +479,13 @@ public class TrackServiceImpl implements ITrackService {
         }
 
         // 2. 🟢 SỬA LẠI ĐOẠN NÀY: Truy vấn trực tiếp từ Repository để triệt tiêu lỗi Cache Hibernate
-        java.util.List<TrackArtistInfo> artistList = java.util.List.of();
+        List<TrackArtistInfo> artists = List.of();
 
-        // Gọi Repo bốc trực tiếp dữ liệu thực tế dưới DB lên thay vì dùng track.getTrackArtists()
-        List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackId(track.getId());
+// Gọi thẳng Repo bằng ID của bài hát
+        List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackIdWithArtist(track.getId());
 
         if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
-            artistList = dbTrackArtists.stream()
+            artists = dbTrackArtists.stream()
                     .map(ta -> new TrackArtistInfo(
                             ta.getArtist().getId(),
                             ta.getArtist().getName(),
@@ -503,7 +514,7 @@ public class TrackServiceImpl implements ITrackService {
                 track.getUploadDate(),
                 track.getViewCount(),
                 albumDTO,
-                artistList,
+                artists,
                 categoryList
         );
     }
@@ -657,21 +668,9 @@ public class TrackServiceImpl implements ITrackService {
         // 1. Gọi Repo mới có JOIN FETCH
         List<Track> tracks = trackRepository.findTracksByArtistIdWithAlbum(artistId);
 
-        // 2. Chuyển đổi sang DTO an toàn
+        // 2. Chuyển đổi sang DTO an toàn bằng hàm toResponseDto đã được vá lỗi
         return tracks.stream()
-                .map(track -> new TrackResponseDTO(
-                        track.getId(),
-                        track.getName(),
-                        // Phòng hờ nếu bài hát đơn lẻ không thuộc album nào (tránh lỗi NullPointerException)
-                        track.getAlbum() != null ? track.getAlbum().getName() : "Single",
-                        track.getImg(),
-                        track.getDuration(),
-                        track.getFilePath(),
-                        track.getPreviewPath(),
-                        track.getViewCount(),
-                        track.getUploadDate(),
-                        null
-                ))
+                .map(this::toResponseDto)
                 .toList();
     }
 }

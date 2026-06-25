@@ -1,6 +1,7 @@
 package vn.edu.fpt.sba.music4.dtos.response;
 
 import java.time.LocalDate;
+import java.util.List;
 
 public record TrackResponseDTO(
         Integer id,
@@ -12,6 +13,7 @@ public record TrackResponseDTO(
         String previewPath,
         Integer viewCount,
         LocalDate uploadDate,
-        Integer playbackPosition
+        Integer playbackPosition,
+        List<TrackArtistInfo> artists
 ) {
 }
