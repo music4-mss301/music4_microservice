@@ -6,7 +6,7 @@ import java.util.List;
 public record TrackResponseDTO(
         Integer id,
         String name,
-        String title,
+        String albumName,
         String img,
         Integer duration,
         String filePath,
