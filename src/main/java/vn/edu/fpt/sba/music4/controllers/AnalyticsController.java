@@ -43,7 +43,7 @@ public class AnalyticsController {
     })
     public ResponseEntity<String> rateTrack(@Valid @RequestBody RatingRequest request) {
         ratingService.saveRating(request);
-        return ResponseEntity.ok("Thank you for rating the song!");
+        return ResponseEntity.ok("Cảm ơn bạn đã đánh giá bài hát!");
     }
 
     @GetMapping("/artist/{artistId}/overview")

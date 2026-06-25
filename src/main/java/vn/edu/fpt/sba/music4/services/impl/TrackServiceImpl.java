@@ -110,7 +110,7 @@ public class TrackServiceImpl implements ITrackService {
             return this.toDetailResponseDto(savedTrack);
 
         } catch (Exception e) {
-            throw new RuntimeException("Upload thất bại: " + e.getMessage());
+            throw new RuntimeException("Upload thất bại: " + e.getMessage(), e);
         }
     }
 
@@ -230,7 +230,7 @@ public class TrackServiceImpl implements ITrackService {
         if (track.getAlbum() != null) {
             albumDTO = new AlbumResponseDTO(
                     track.getAlbum().getId(),
-                    track.getAlbum().getName(),
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Single",
                     track.getAlbum().getImg(),
                     track.getAlbum().getUploadDate(),
                     track.getAlbum().getTrackTotal(),
@@ -288,17 +288,23 @@ public class TrackServiceImpl implements ITrackService {
     public TrackResponseDTO toResponseDto(Track track) {
         if (track == null) return null;
 
+        List<TrackArtistInfo> artistList = trackArtistRepository.findByTrackId(track.getId())
+                .stream()
+                .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
+                .toList();
+
         return new TrackResponseDTO(
                 track.getId(),
                 track.getName(),
-                track.getAlbum().getName(),
+                track.getAlbum() != null ? track.getAlbum().getName() : "Single",
                 track.getImg(),
                 track.getDuration(),
                 track.getFilePath(),
                 track.getPreviewPath(),
                 track.getViewCount(),
                 track.getUploadDate(),
-                null
+                null,
+                artistList
         );
     }
 
@@ -581,6 +587,13 @@ public class TrackServiceImpl implements ITrackService {
 
         // 3. Tiến hành xóa bài hát (Cascade sẽ tự động dọn dẹp liên kết ở các bảng trung gian)
         trackRepository.delete(track);
+
+        if (track.getAlbum() != null) {
+            Album album = track.getAlbum();
+            int realTotal = trackRepository.countByAlbumId(album.getId());
+            album.setTrackTotal(realTotal);
+            albumRepository.save(album);
+        }
     }
 
     /**
@@ -694,19 +707,26 @@ public class TrackServiceImpl implements ITrackService {
 
         // 2. Chuyển đổi sang DTO an toàn
         return tracks.stream()
-                .map(track -> new TrackResponseDTO(
-                        track.getId(),
-                        track.getName(),
-                        // Phòng hờ nếu bài hát đơn lẻ không thuộc album nào (tránh lỗi NullPointerException)
-                        track.getAlbum() != null ? track.getAlbum().getName() : "Single",
-                        track.getImg(),
-                        track.getDuration(),
-                        track.getFilePath(),
-                        track.getPreviewPath(),
-                        track.getViewCount(),
-                        track.getUploadDate(),
-                        null
-                ))
+                .map(track -> {
+                    List<TrackArtistInfo> artists = trackArtistRepository.findByTrackId(track.getId())
+                            .stream()
+                            .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
+                            .toList();
+
+                    return new TrackResponseDTO(
+                            track.getId(),
+                            track.getName(),
+                            track.getAlbum() != null ? track.getAlbum().getName() : "Single",
+                            track.getImg(),
+                            track.getDuration(),
+                            track.getFilePath(),
+                            track.getPreviewPath(),
+                            track.getViewCount(),
+                            track.getUploadDate(),
+                            null,    // playbackPosition
+                            artists
+                    );
+                })
                 .toList();
     }
 }

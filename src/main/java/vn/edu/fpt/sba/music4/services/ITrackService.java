@@ -8,6 +8,7 @@ import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Track;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ITrackService {
     // Luồng thêm mới (Upload)[cite: 1, 6]

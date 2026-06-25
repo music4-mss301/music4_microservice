@@ -21,18 +21,12 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
     @Query("SELECT t FROM Track t ORDER BY t.viewCount DESC")
     List<Track> findTopTrendingTracks(Pageable pageable);
 
-    @Query(value = "SELECT DISTINCT t.* FROM TRACKS t " +
-            "LEFT JOIN Track_Artists ta ON t.id = ta.track_id " +
-            "LEFT JOIN ARTISTS a ON ta.artist_id = a.id " +
-            "WHERE (REPLACE(LOWER(t.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%') " +
-            "OR (REPLACE(LOWER(a.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%') " +
-            "ORDER BY t.name ASC",
-            countQuery = "SELECT COUNT(DISTINCT t.id) FROM TRACKS t " +
-                    "LEFT JOIN Track_Artists ta ON t.id = ta.track_id " +
-                    "LEFT JOIN ARTISTS a ON ta.artist_id = a.id " +
-                    "WHERE (REPLACE(LOWER(t.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%') " +
-                    "OR (REPLACE(LOWER(a.name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%')",
-            nativeQuery = true)
+    @Query("SELECT DISTINCT t FROM Track t " +
+            "LEFT JOIN FETCH t.album " +
+            "LEFT JOIN t.trackArtists ta " +
+            "LEFT JOIN ta.artist a " +
+            "WHERE (REPLACE(LOWER(t.name), '-', ' ') LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+            "OR (REPLACE(LOWER(a.name), '-', ' ') LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<Track> searchByName(@Param("keyword") String keyword, Pageable pageable);
     List<Track> findByAlbumId(Integer albumId);
     int countByAlbumId(Integer albumId);

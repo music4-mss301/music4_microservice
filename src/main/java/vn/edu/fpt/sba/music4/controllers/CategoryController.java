@@ -14,6 +14,7 @@ import vn.edu.fpt.sba.music4.exceptions.BusinessException;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/categories")
@@ -73,5 +74,9 @@ public class CategoryController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
     }
-
+    @GetMapping("/stats")
+    public ResponseEntity<List<Map<String, Object>>> getCategoryStats() {
+        // Giả định bạn đã tạo hàm getCategoryStats() trong ICategoryService
+        return ResponseEntity.ok(categoryService.getCategoryStats());
+    }
 }

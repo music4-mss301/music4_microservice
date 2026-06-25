@@ -16,6 +16,7 @@ import vn.edu.fpt.sba.music4.dtos.request.TrackPlayRequest;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.services.ITrackingService;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -32,8 +33,8 @@ public class TrackingController {
             @ApiResponse(responseCode = "200", description = "Ghi nhận lượt nghe thành công"),
             @ApiResponse(responseCode = "400", description = "Dữ liệu đầu vào không hợp lệ (VD: thiếu trackId)")
     })
-    public ResponseEntity<String> recordPlayHistory(@Valid @RequestBody TrackPlayRequest request) {
-        trackingService.recordPlayHistory(request.trackId(), request.userId());
+    public ResponseEntity<String> recordPlayHistory(@Valid @RequestBody TrackPlayRequest request, Principal principal) {
+        trackingService.recordPlayHistory(request.trackId(), request.userId(), principal.getName());
 
         return ResponseEntity.ok("Listen recorded successfully!");
     }
@@ -46,7 +47,7 @@ public class TrackingController {
     })
     public ResponseEntity<String> syncPlaybackTime(@Valid @RequestBody SyncTimeRequest request) {
         trackingService.syncPlaybackPosition(request);
-        return ResponseEntity.ok("Time synchronized successfully!");
+        return ResponseEntity.ok("Đồng bộ thời gian thành công!");
     }
 
     @GetMapping("/history/{userId}")
