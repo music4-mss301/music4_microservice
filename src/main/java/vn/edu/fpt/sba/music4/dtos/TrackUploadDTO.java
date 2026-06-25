@@ -14,4 +14,7 @@ public class TrackUploadDTO {
     private Integer albumId;
     private List<Integer> categoryIds;
     private List<Integer> artistIds;
+
+    private org.springframework.web.multipart.MultipartFile audioFile;
+    private org.springframework.web.multipart.MultipartFile coverImage;
 }

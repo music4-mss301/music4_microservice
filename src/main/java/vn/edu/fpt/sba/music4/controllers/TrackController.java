@@ -144,14 +144,14 @@ public class TrackController {
     }
 
     // ok
-    @PutMapping("/{id}")
+    @PostMapping("/update/{id}")
     @Operation(summary = "Cập nhật thông tin (Metadata) bài hát", description = "Sửa tên, thời lượng, danh sách ca sĩ collab hoặc thể loại của bài hát")
     @ApiResponse(responseCode = "200", description = "Cập nhật thông tin bài hát thành công")
     public ResponseEntity<TrackDetailResponseDTO> updateTrackMetadata(
             @Parameter(description = "ID bài hát cần cập nhật", example = "1") @PathVariable Integer id,
 
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Thông tin cập nhật mới của bài hát", required = true)
-            @org.springframework.web.bind.annotation.RequestBody TrackUploadDTO dto) {
+            // 🔥 ĐỔI THÀNH @ModelAttribute ĐỂ ĐỌC ĐƯỢC MULTIPART/FORM-DATA
+            @ModelAttribute TrackUploadDTO dto) {
 
         return ResponseEntity.ok(trackService.updateTrackMetadata(id, dto));
     }
