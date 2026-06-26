@@ -318,10 +318,24 @@ public class TrackServiceImpl implements ITrackService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public TrackDetailResponseDTO updateTrackMetadata(Integer id, TrackUploadDTO dto) {
+    public TrackDetailResponseDTO updateTrackMetadata(Integer id, TrackUploadDTO dto, String currentUsername) {
         // 1. Tìm bài hát hiện tại trong Database
         Track existingTrack = trackRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát ID: " + id));
+
+        // Tìm ID của người đang gửi request dựa vào username
+        Artist currentUser = artistRepository.findByUsername(currentUsername);
+
+        // Tìm MAIN artist của bài hát
+        Integer mainArtistID = existingTrack.getTrackArtists().stream()
+                .filter(ta -> "MAIN".equals(ta.getRole()))
+                .map(ta -> ta.getArtist().getId())
+                .findFirst().orElse(-1);
+
+        // Nếu không phải là người sở hữu (MAIN), chặn lại ngay!
+        if (!currentUser.getId().equals(mainArtistID)) {
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa bài hát này vì bạn không phải nghệ sĩ chính (MAIN)!");
+        }
 
         Album oldAlbum = existingTrack.getAlbum();
 
@@ -558,10 +572,24 @@ public class TrackServiceImpl implements ITrackService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void deleteTrack(Integer id) {
+    public void deleteTrack(Integer id, String currentUsername) {
         // 1. Tìm bài hát xem có tồn tại không trước khi tiến hành xóa
         Track track = trackRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát ID: " + id));
+
+        // Tìm ID của người đang gửi request dựa vào username
+        Artist currentUser = artistRepository.findByUsername(currentUsername);
+
+        // Tìm MAIN artist của bài hát
+        Integer mainArtistID = track.getTrackArtists().stream()
+                .filter(ta -> "MAIN".equals(ta.getRole()))
+                .map(ta -> ta.getArtist().getId())
+                .findFirst().orElse(-1);
+
+        // Nếu không phải là người sở hữu (MAIN), chặn lại ngay!
+        if (!currentUser.getId().equals(mainArtistID)) {
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa bài hát này vì bạn không phải nghệ sĩ chính (MAIN)!");
+        }
 
         // 2. 🔥 GIẢM TRACK TOTAL CỦA CÁC NGHỆ SĨ THAM GIA BÀI HÁT NÀY
         if (track.getTrackArtists() != null) {
@@ -700,33 +728,37 @@ public class TrackServiceImpl implements ITrackService {
                 .toList();
     }
 
+    // Trong TrackServiceImpl.java
     @Override
+    @Transactional(readOnly = true)
     public List<TrackResponseDTO> getTracksByArtistId(Integer artistId) {
-        // 1. Gọi Repo mới có JOIN FETCH
-        List<Track> tracks = trackRepository.findTracksByArtistIdWithAlbum(artistId);
+        // 1. Gọi Repo với JOIN FETCH để nạp cả Artist
+        List<Track> tracks = trackRepository.findTracksByArtistIdWithAllDetails(artistId);
 
-        // 2. Chuyển đổi sang DTO an toàn
-        return tracks.stream()
-                .map(track -> {
-                    List<TrackArtistInfo> artists = trackArtistRepository.findByTrackId(track.getId())
-                            .stream()
-                            .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
-                            .toList();
+        // 2. Chuyển đổi sang DTO
+        return tracks.stream().map(track -> {
+            // Nạp thông tin nghệ sĩ vào List<TrackArtistInfo>
+            List<TrackArtistInfo> artistList = track.getTrackArtists().stream()
+                    .map(ta -> new TrackArtistInfo(
+                            ta.getArtist().getId(),
+                            ta.getArtist().getName(),
+                            ta.getRole()
+                    ))
+                    .toList();
 
-                    return new TrackResponseDTO(
-                            track.getId(),
-                            track.getName(),
-                            track.getAlbum() != null ? track.getAlbum().getName() : "Single",
-                            track.getImg(),
-                            track.getDuration(),
-                            track.getFilePath(),
-                            track.getPreviewPath(),
-                            track.getViewCount(),
-                            track.getUploadDate(),
-                            null,    // playbackPosition
-                            artists
-                    );
-                })
-                .toList();
+            return new TrackResponseDTO(
+                    track.getId(),
+                    track.getName(),
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Single",
+                    track.getImg(),
+                    track.getDuration(),
+                    track.getFilePath(),
+                    track.getPreviewPath(),
+                    track.getViewCount(),
+                    track.getUploadDate(),
+                    null, // playbackPosition thường là null ở trang profile
+                    artistList // 🔥 Nạp list nghệ sĩ vào đây
+            );
+        }).toList();
     }
 }
