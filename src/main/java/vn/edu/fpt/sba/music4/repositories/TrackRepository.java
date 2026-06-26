@@ -41,4 +41,12 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             "JOIN t.trackArtists ta " +   // 👈 JOIN vào bảng trung gian trackArtists
             "WHERE ta.artist.id = :artistId") // 👈 Lọc ID ca sĩ từ bảng trung gian
     List<Track> findTracksByArtistIdWithAlbum(@Param("artistId") Integer artistId);
+
+    // Trong TrackRepository.java
+    @Query("SELECT DISTINCT t FROM Track t " +
+            "LEFT JOIN FETCH t.album " +
+            "LEFT JOIN FETCH t.trackArtists ta " +
+            "LEFT JOIN FETCH ta.artist " +
+            "WHERE ta.artist.id = :artistId")
+    List<Track> findTracksByArtistIdWithAllDetails(@Param("artistId") Integer artistId);
 }

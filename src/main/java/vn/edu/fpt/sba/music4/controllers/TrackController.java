@@ -26,6 +26,7 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 import org.springframework.http.HttpHeaders;
 
 import java.io.IOException;
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -144,16 +145,18 @@ public class TrackController {
     }
 
     // ok
-    @PutMapping("/{id}")
+    @PostMapping("/update/{id}")
     @Operation(summary = "Cập nhật thông tin (Metadata) bài hát", description = "Sửa tên, thời lượng, danh sách ca sĩ collab hoặc thể loại của bài hát")
     @ApiResponse(responseCode = "200", description = "Cập nhật thông tin bài hát thành công")
     public ResponseEntity<TrackDetailResponseDTO> updateTrackMetadata(
             @Parameter(description = "ID bài hát cần cập nhật", example = "1") @PathVariable Integer id,
 
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Thông tin cập nhật mới của bài hát", required = true)
-            @org.springframework.web.bind.annotation.RequestBody TrackUploadDTO dto) {
+            // 🔥 ĐỔI THÀNH @ModelAttribute ĐỂ ĐỌC ĐƯỢC MULTIPART/FORM-DATA
+            @ModelAttribute TrackUploadDTO dto, Principal principal) {
 
-        return ResponseEntity.ok(trackService.updateTrackMetadata(id, dto));
+        String currentUsername = principal.getName();
+
+        return ResponseEntity.ok(trackService.updateTrackMetadata(id, dto, currentUsername));
     }
 
     // ok
@@ -161,8 +164,9 @@ public class TrackController {
     @Operation(summary = "Xóa bài hát hoàn toàn", description = "Xóa bài hát khỏi hệ thống và tự động dọn sạch liên kết ở các bảng trung gian")
     @ApiResponse(responseCode = "200", description = "Xóa bài hát thành công")
     public ResponseEntity<String> deleteTrack(
-            @Parameter(description = "ID bài hát cần xóa", example = "1") @PathVariable Integer id) {
-        trackService.deleteTrack(id);
+            @Parameter(description = "ID bài hát cần xóa", example = "1") @PathVariable Integer id, Principal principal) {
+        String currentUsername = principal.getName();
+        trackService.deleteTrack(id, currentUsername);
         return ResponseEntity.ok("Xóa bài hát có " + id + " thành công!");
     }
 
