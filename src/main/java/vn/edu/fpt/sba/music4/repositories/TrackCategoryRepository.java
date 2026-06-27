@@ -4,7 +4,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.sba.music4.entities.TrackCategory;
 
+import java.util.List;
+
 @Repository
 public interface TrackCategoryRepository extends JpaRepository<TrackCategory, Integer> {
     long countByCategoryId(Integer id);
+
+    List<TrackCategory> findByCategoryId(Integer categoryId);
 }

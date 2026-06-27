@@ -8,6 +8,7 @@ import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Track;
 
 import java.util.List;
+import java.util.Map;
 
 public interface ITrackService {
     // Luồng thêm mới (Upload)[cite: 1, 6]
@@ -18,8 +19,8 @@ public interface ITrackService {
     List<TrackResponseDTO> getTracksByAlbumId(Integer albumId);
     List<TrackDetailResponseDTO> getAllTrack();
     // Luồng chỉnh sửa và xóa metadata bài hát[cite: 6]
-    TrackDetailResponseDTO updateTrackMetadata(Integer id, TrackUploadDTO dto);
-    void deleteTrack(Integer id);
+    TrackDetailResponseDTO updateTrackMetadata(Integer id, TrackUploadDTO dto, String currentUsername);
+    void deleteTrack(Integer id, String currentUsername);
     Integer getAudioDurationInSeconds(MultipartFile audioFile);
     void saveBulkTracksJson(AlbumBulkJsonDTO dto);
     List<TrackDetailResponseDTO> getTop5MostViewedTracks();

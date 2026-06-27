@@ -21,6 +21,7 @@ import vn.edu.fpt.sba.music4.util.AWSUtil;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -159,5 +160,10 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     @Override
     public long countTotalArtists() {
         return artistRepository.count();
+    }
+
+    @Override
+    public List<Map<String, Object>> getTop3Artists() {
+        return artistRepository.getTop3Artists();
     }
 }
