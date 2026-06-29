@@ -31,6 +31,13 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
     @Query(value = "SELECT COALESCE(COUNT_BIG(id), 0) FROM FOLLOWS WHERE artist_id = :artistId", nativeQuery = true)
     Long getTotalFollowersByArtist(@Param("artistId") Integer artistId);
 
+    @Query(value = "SELECT COALESCE(COUNT_BIG(c.id), 0) " +
+            "FROM COMMENTS c " +
+            "INNER JOIN TRACKS t ON c.track_id = t.id " +
+            "INNER JOIN TRACK_ARTISTS ta ON t.id = ta.track_id " +
+            "WHERE ta.artist_id = :artistId", nativeQuery = true)
+    Long getTotalCommentsByArtist(@Param("artistId") Integer artistId);
+
     Optional<Artist> findByUserName(String userName);
 
     @Query(value = "SELECT * FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' ORDER BY name ASC",
@@ -53,4 +60,25 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
             "ORDER BY (followers + favorites) DESC, trackTotal DESC",
             nativeQuery = true)
     List<Map<String, Object>> getTop3Artists();
+
+    @Query(value = """
+    SELECT TOP 5
+        t.id,
+        t.name,
+        t.view_count,
+        COUNT(f.id) AS favorite_count
+    FROM TRACKS t
+    JOIN TRACK_ARTISTS ta
+        ON ta.track_id = t.id
+    LEFT JOIN FAVORITES f
+        ON f.track_id = t.id
+    WHERE ta.artist_id = :artistId
+    GROUP BY
+        t.id,
+        t.name,
+        t.view_count
+    ORDER BY
+        t.view_count DESC
+    """, nativeQuery = true)
+    List<Map<String, Object>> getTopTracksByArtist(@Param("artistId") Integer artistId);
 }

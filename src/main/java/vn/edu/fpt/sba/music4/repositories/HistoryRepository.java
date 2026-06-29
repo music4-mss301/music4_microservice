@@ -12,6 +12,7 @@ import vn.edu.fpt.sba.music4.entities.History;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -45,4 +46,20 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     @Modifying
     @Query("DELETE FROM History h WHERE h.playbackPosition < 5 OR h.listenedAt < :cutoffDate")
     void cleanupGarbageHistory(@Param("cutoffDate") LocalDateTime cutoffDate);
+
+    @Query(value = """
+    SELECT
+        CAST(h.listened_at AS DATE) AS day,
+        COUNT(*) AS views
+    FROM HISTORY h
+    INNER JOIN TRACKS t
+        ON h.track_id = t.id
+    INNER JOIN TRACK_ARTISTS ta
+        ON ta.track_id = t.id
+    WHERE ta.artist_id = :artistId
+      AND h.listened_at >= DATEADD(DAY, -6, CAST(GETDATE() AS DATE))
+    GROUP BY CAST(h.listened_at AS DATE)
+    ORDER BY day
+    """, nativeQuery = true)
+    List<Map<String, Object>> getDailyAnalyticsByArtist(@Param("artistId") Integer artistId);
 }
