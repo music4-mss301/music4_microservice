@@ -50,7 +50,7 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     @Query(value = """
     SELECT
         CAST(h.listened_at AS DATE) AS day,
-        COUNT(*) AS views
+        COUNT(DISTINCT h.id) AS views
     FROM HISTORY h
     INNER JOIN TRACKS t
         ON h.track_id = t.id
