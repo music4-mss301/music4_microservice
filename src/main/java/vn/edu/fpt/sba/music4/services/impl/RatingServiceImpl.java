@@ -38,4 +38,11 @@ public class RatingServiceImpl implements IRatingService {
             ratingRepository.save(newRating);
         }
     }
+    @Override
+    public int getRatingByUserAndTrack(Integer userId, Integer trackId) {
+
+        return ratingRepository.findByUserIdAndTrackId(userId, trackId)
+                .map(Rating::getRatingValue)
+                .orElse(0);
+    }
 }

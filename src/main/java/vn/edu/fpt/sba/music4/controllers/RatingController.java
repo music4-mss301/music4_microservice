@@ -25,4 +25,15 @@ public class RatingController {
                 "message", "Đánh giá bài hát thành công!"
         ));
     }
+    @GetMapping("/track/{trackId}/user/{userId}")
+    public ResponseEntity<?> getUserRating(
+            @PathVariable Integer trackId,
+            @PathVariable Integer userId) {
+        int score = ratingService.getRatingByUserAndTrack(userId, trackId);
+
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "rating", score
+        ));
+    }
 }
