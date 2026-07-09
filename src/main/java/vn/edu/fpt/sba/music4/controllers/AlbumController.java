@@ -5,11 +5,15 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.response.AlbumCreateDTO;
+import vn.edu.fpt.sba.music4.dtos.response.AlbumDetailResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.AlbumResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Album;
@@ -27,14 +31,20 @@ public class AlbumController {
         this.albumService = albumService;
     }
 
-    // ok
     @GetMapping("")
     @Operation(summary = "Lấy danh sách Album", description = "Hiển thị toàn bộ album có trong hệ thống")
     public ResponseEntity<List<AlbumResponseDTO>> getAllAlbums() {
         return ResponseEntity.ok(albumService.findAll());
     }
 
-    // ok
+    @GetMapping("/all")
+    @Operation(summary = "Lấy danh sách Album", description = "Hiển thị toàn bộ album có trong hệ thống")
+    public Page<AlbumDetailResponseDTO> getAllAlbums(@RequestParam(defaultValue = "0") int page,
+                                                     @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return albumService.findAll(pageable);
+    }
+
     @GetMapping("/artist/{artistId}")
     @Operation(summary = "Lấy danh sách Album của một ca sĩ", description = "Lọc và hiển thị toàn bộ album do nghệ sĩ đó sở hữu")
     @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công")
@@ -43,7 +53,6 @@ public class AlbumController {
         return ResponseEntity.ok(albumService.getAlbumsByArtist(artistId));
     }
 
-    // ok
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // Định nghĩa API này nhận form-data
     @Operation(summary = "Tạo Album mới", description = "Tạo một album kèm ảnh bìa cho nghệ sĩ")
     @ApiResponse(responseCode = "201", description = "Tạo album thành công")
