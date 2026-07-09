@@ -31,7 +31,6 @@ public class AlbumController {
         this.albumService = albumService;
     }
 
-    // ok
     @GetMapping("")
     @Operation(summary = "Lấy danh sách Album", description = "Hiển thị toàn bộ album có trong hệ thống")
     public ResponseEntity<List<AlbumResponseDTO>> getAllAlbums() {
@@ -46,7 +45,6 @@ public class AlbumController {
         return albumService.findAll(pageable);
     }
 
-    // ok
     @GetMapping("/artist/{artistId}")
     @Operation(summary = "Lấy danh sách Album của một ca sĩ", description = "Lọc và hiển thị toàn bộ album do nghệ sĩ đó sở hữu")
     @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công")
@@ -55,7 +53,6 @@ public class AlbumController {
         return ResponseEntity.ok(albumService.getAlbumsByArtist(artistId));
     }
 
-    // ok
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE) // Định nghĩa API này nhận form-data
     @Operation(summary = "Tạo Album mới", description = "Tạo một album kèm ảnh bìa cho nghệ sĩ")
     @ApiResponse(responseCode = "201", description = "Tạo album thành công")
