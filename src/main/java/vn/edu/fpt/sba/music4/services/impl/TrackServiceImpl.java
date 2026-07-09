@@ -1,6 +1,8 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
 import com.mpatric.mp3agic.Mp3File;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -314,6 +316,13 @@ public class TrackServiceImpl implements ITrackService {
         return trackRepository.findAll().stream()
                 .map(this::toDetailResponseDto)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public Page<TrackDetailResponseDTO> getAllTrack(Pageable pageable) {
+        Page<Track> page = trackRepository.findAll(pageable);
+        return page.map(artist -> this.toDetailResponseDto(artist));
     }
 
     @Override
@@ -734,6 +743,11 @@ public class TrackServiceImpl implements ITrackService {
     public List<TrackResponseDTO> getTracksByArtistId(Integer artistId) {
         // 1. Gọi Repo với JOIN FETCH để nạp cả Artist
         List<Track> tracks = trackRepository.findTracksByArtistIdWithAllDetails(artistId);
+
+        for (Track t : tracks) {
+            System.out.println("Bài hát: " + t.getName() + " | Số nghệ sĩ trong DB: " + t.getTrackArtists().size());
+            t.getTrackArtists().forEach(ta -> System.out.println(" - " + ta.getArtist().getName() + ": " + ta.getRole()));
+        }
 
         // 2. Chuyển đổi sang DTO
         return tracks.stream().map(track -> {
