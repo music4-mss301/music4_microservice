@@ -33,7 +33,7 @@ public class User implements UserDetails {
     @Column(nullable = false, length = 100, unique = true)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = true, length = 255)
     private String password;
 
     @Column(name = "user_name", nullable = false, length = 50, unique = true)
@@ -51,6 +51,9 @@ public class User implements UserDetails {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<PasswordResetToken> passwordResetTokens;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<UserProvider> userProviders;
 
     public User(String name, String img, String email, String username, String password, String role) {
         this.name = name;

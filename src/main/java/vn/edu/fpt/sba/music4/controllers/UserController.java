@@ -15,6 +15,11 @@ import vn.edu.fpt.sba.music4.services.IUserService;
 public class UserController {
     private final IUserService userService;
 
+    @GetMapping("/{id}")
+    public UserResponseDTO getUser(@PathVariable Integer id){
+        return userService.getById(id);
+    }
+
     @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public UserResponseDTO updateUser(@PathVariable Integer id, @ModelAttribute UserRequest userRequest) {
         return userService.update(id, userRequest);
