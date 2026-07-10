@@ -18,7 +18,6 @@ import vn.edu.fpt.sba.music4.dtos.response.AlbumResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.services.IAlbumService;
-
 import java.util.List;
 
 @RestController
