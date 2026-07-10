@@ -13,6 +13,9 @@ public interface IPlaylistService {
     List<PlaylistResponseDTO> getMyPlaylists();
     PlaylistResponseDTO updatePlaylist(Integer id, PlaylistRequest request);
 
+    PlaylistResponseDTO getPlaylistById(Integer id);
+    List<vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO> getTracksByPlaylistId(Integer playlistId);
+
     void deletePlaylist(Integer id);
     void addTrackToPlaylist(Integer playlistId, AddTrackRequest request);
     void removeTrackFromPlaylist(Integer playlistId, Integer trackId);

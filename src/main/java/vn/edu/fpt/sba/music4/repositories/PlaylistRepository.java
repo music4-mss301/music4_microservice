@@ -9,14 +9,14 @@ import org.springframework.stereotype.Repository;
 import vn.edu.fpt.sba.music4.entities.Playlist;
 
 import java.util.List;
+import java.util.Optional;
 
 
 @Repository
 public interface PlaylistRepository extends JpaRepository<Playlist, Integer> {
     List<Playlist> findByUserId(Integer userId);
-    @Query(value = "SELECT * FROM PlayLists WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' ORDER BY name ASC",
-            countQuery = "SELECT COUNT(*) FROM PlayLists WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%'",
-            nativeQuery = true)
+    @Query("SELECT p FROM Playlist p JOIN FETCH p.user WHERE p.id = :id")
+    Optional<Playlist> findById(@Param("id") Integer id);
     Page<Playlist> searchByName(@Param("keyword") String keyword, Pageable pageable);
 }
 
