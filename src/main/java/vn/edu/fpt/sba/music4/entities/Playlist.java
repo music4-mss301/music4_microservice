@@ -19,6 +19,7 @@ public class Playlist {
     @Column(nullable = false, columnDefinition = "NVARCHAR(100)", length = 100)
     private String name;
 
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
