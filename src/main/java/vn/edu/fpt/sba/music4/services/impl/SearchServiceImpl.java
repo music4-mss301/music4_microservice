@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.*;
 import vn.edu.fpt.sba.music4.entities.*;
 import vn.edu.fpt.sba.music4.repositories.*;
@@ -62,6 +63,7 @@ public class SearchServiceImpl implements ISearchService {
         );
     }
     @Override
+    @Transactional(readOnly = true)
     public SearchResultResponseDTO search(String keyword, String type, int page, int size) {
         String cleanKey = cleanKeyword(keyword);
 

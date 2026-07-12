@@ -50,7 +50,7 @@ public class SystemJobScheduler {
                 log.info("[OK] Python AI Microservice đang hoạt động tốt.");
             }
         } catch (Exception e) {
-            log.error("[BÁO ĐỘNG] Python AI Microservice KHÔNG PHẢN HỒI. Vui lòng kiểm tra lại server (Port 8000).");
+            log.error("[CẢNH BÁO] Python AI Microservice KHÔNG PHẢN HỒI. Vui lòng kiểm tra lại server (Port 8000).");
         }
 
         // Kiểm tra Elasticsearch

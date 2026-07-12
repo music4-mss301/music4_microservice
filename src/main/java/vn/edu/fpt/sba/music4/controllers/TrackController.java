@@ -6,6 +6,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -46,8 +49,10 @@ public class TrackController {
     // ok
     @GetMapping("")
     @Operation(summary = "Lấy tất cả bài hát", description = "Trả về toàn bộ danh sách các bài hát")
-    public List<TrackDetailResponseDTO> getAllTrack() {
-        return trackService.getAllTrack();
+    public Page<TrackDetailResponseDTO> getAllTrack(@RequestParam(defaultValue = "0") int page,
+                                                    @RequestParam(defaultValue = "10") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return trackService.getAllTrack(pageable);
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

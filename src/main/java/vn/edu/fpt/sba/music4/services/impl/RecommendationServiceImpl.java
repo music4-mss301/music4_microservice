@@ -12,6 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackSuggestResponse;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.repositories.FavoriteRepository;
@@ -119,11 +120,21 @@ public class RecommendationServiceImpl implements IRecommendationService {
             // Map với SQL Server và trả về
             List<Track> finalTracks = trackRepository.findAllById(recommendedTrackIds);
             return finalTracks.stream()
-                    .map(track -> new TrackSuggestResponse(
-                            track.getId(), track.getName(), track.getImg(), track.getDuration(),
-                            track.getPreviewPath(), track.getViewCount(),
-                            Math.round(scoreMap.getOrDefault(track.getId(), 0.0) * 100.0) / 100.0
-                    ))
+                    .map(track -> {
+                        List<TrackArtistInfo> artistInfos = track.getTrackArtists().stream()
+                                .map(ta -> new TrackArtistInfo(
+                                        ta.getArtist().getId(),
+                                        ta.getArtist().getName(),
+                                        ta.getRole()
+                                )).toList();
+
+                        return new TrackSuggestResponse(
+                                track.getId(), track.getName(), track.getImg(), track.getDuration(),
+                                track.getPreviewPath(), track.getViewCount(),
+                                Math.round(scoreMap.getOrDefault(track.getId(), 0.0) * 100.0) / 100.0,
+                                artistInfos
+                        );
+                    })
                     .sorted((t1, t2) -> Double.compare(t2.matchScore(), t1.matchScore()))
                     .limit(10)
                     .collect(Collectors.toList());
@@ -140,15 +151,26 @@ public class RecommendationServiceImpl implements IRecommendationService {
 
         return trackRepository.findTopTrendingTracks(PageRequest.of(0, 10))
                 .stream()
-                .map(track -> new TrackSuggestResponse(
-                        track.getId(),
-                        track.getName(),
-                        track.getImg(),
-                        track.getDuration(),
-                        track.getPreviewPath(),
-                        track.getViewCount(),
-                        99.9
-                ))
+                .map(track -> {
+                    // Map danh sách nghệ sĩ
+                    List<TrackArtistInfo> artistInfos = track.getTrackArtists().stream()
+                            .map(ta -> new TrackArtistInfo(
+                                    ta.getArtist().getId(),
+                                    ta.getArtist().getName(),
+                                    ta.getRole()
+                            )).toList();
+
+                    return new TrackSuggestResponse(
+                            track.getId(),
+                            track.getName(),
+                            track.getImg(),
+                            track.getDuration(),
+                            track.getPreviewPath(),
+                            track.getViewCount(),
+                            null,
+                            artistInfos
+                    );
+                })
                 .collect(Collectors.toList());
     }
 
