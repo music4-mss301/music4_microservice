@@ -8,4 +8,7 @@ public interface INotificationService {
     List<NotificationResponseDTO> getMyNotifications(Integer userId);
     void markAsRead(Integer notificationId);
     void sendNewTrackNotification(Track track);
+    void createNewTrackNotification(Integer artistId, String artistName, Integer trackId, String trackName);
+    void deleteNotification(Integer notificationId);
+    void deleteAllMyNotifications(Integer userId);
 }
