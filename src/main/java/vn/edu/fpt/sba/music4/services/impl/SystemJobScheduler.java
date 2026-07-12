@@ -42,7 +42,8 @@ public class SystemJobScheduler {
     @Scheduled(fixedRate = 300000) // 5 phút check 1 lần
     public void healthCheckMicroservices() {
         log.info("[HEALTH CHECK] Đang kiểm tra kết nối tới các Microservices...");
-
+        log.info("[DEBUG] AI URL đang dùng: {}", aiServiceUrl);
+        log.info("[DEBUG] ES URL đang dùng: {}", elasticsearchUrl);
         // Kiểm tra Python AI
         try {
             ResponseEntity<String> pythonHealth = restTemplate.getForEntity(aiServiceUrl, String.class);

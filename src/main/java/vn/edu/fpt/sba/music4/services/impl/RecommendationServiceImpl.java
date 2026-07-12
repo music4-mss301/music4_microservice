@@ -21,7 +21,13 @@ import vn.edu.fpt.sba.music4.repositories.HistoryRepository;
 import vn.edu.fpt.sba.music4.repositories.RatingRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.services.IRecommendationService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URI;
 
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -51,8 +57,11 @@ public class RecommendationServiceImpl implements IRecommendationService {
     @Transactional(readOnly = true)
     @SuppressWarnings("unchecked")
     public List<TrackSuggestResponse> getRecommendations(Integer userId) {
+        log.info("[DEBUG] Bắt đầu lấy gợi ý cho User ID: {}", userId);
+
         // Dành cho Guest (Chưa đăng nhập): Chỉ trả về Trending Tracks
         if (userId == null) {
+            log.warn("[DEBUG] User ID null -> Chuyển sang Fallback (Top Trending)");
             return getTrendingFallback();
         }
 
@@ -63,7 +72,12 @@ public class RecommendationServiceImpl implements IRecommendationService {
         ratingRepository.findByUserId(userId).stream()
                 .filter(r -> r.getRatingValue() >= 4).forEach(r -> likedTrackIds.add(r.getTrack().getId()));
 
-        if (likedTrackIds.isEmpty()) return getTrendingFallback();
+        log.info("[DEBUG] Số lượng bài hát user {} đã tương tác: {}", userId, likedTrackIds.size());
+
+        if (likedTrackIds.isEmpty()) {
+            log.warn("[DEBUG] Dữ liệu lịch sử trống! Không có base để AI phân tích -> Chuyển sang Fallback");
+            return getTrendingFallback();
+        }
 
         List<Track> likedTracks = trackRepository.findAllById(likedTrackIds);
         StringBuilder tasteProfileBuilder = new StringBuilder();
@@ -76,25 +90,45 @@ public class RecommendationServiceImpl implements IRecommendationService {
         String userTasteText = tasteProfileBuilder.toString().trim();
         List<Double> embedding = null;
 
-        // --- BƯỚC 2: GỌI AI PYTHON ĐỂ LẤY VECTOR (CÓ TRY-CATCH ĐỘC LẬP) ---
+        // --- BƯỚC 2: GỌI AI PYTHON ĐỂ LẤY VECTOR (NATIVE HTTP/1.1) ---
         try {
             log.info("Đang gọi AI Service để lấy Vector cho User ID: {}", userId);
 
-            Map<String, String> pythonRequest = new HashMap<>();
-            pythonRequest.put("text", userTasteText);
+            // 1. Dọn dẹp text an toàn tuyệt đối
+            String safeText = userTasteText.replace("\"", "").replace("\n", " ").replace("\r", " ").trim();
+            String rawJson = "{\"text\": \"" + safeText + "\"}";
 
-            HttpHeaders pythonHeaders = new HttpHeaders();
-            pythonHeaders.setContentType(MediaType.APPLICATION_JSON);
-            pythonHeaders.set("X-API-Key", "fpt-music4-project-secret-key-2026");
+            // 2. KHỞI TẠO CLIENT VÀ ÉP DÙNG HTTP/1.1 (Chìa khóa ở đây!)
+            HttpClient client = HttpClient.newBuilder()
+                    .version(HttpClient.Version.HTTP_1_1) // <--- Bắt buộc Uvicorn phải hiểu
+                    .build();
 
-            HttpEntity<Map<String, String>> pythonEntity = new HttpEntity<>(pythonRequest, pythonHeaders);
-            Map<String, Object> pythonResponse = restTemplate.postForObject(pythonEmbedUrl, pythonEntity, Map.class);
+            // 3. Đóng gói Request tĩnh
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(pythonEmbedUrl.trim()))
+                    .header("Content-Type", "application/json")
+                    .header("X-API-Key", "fpt-music4-project-secret-key-2026")
+                    .POST(HttpRequest.BodyPublishers.ofString(rawJson, StandardCharsets.UTF_8))
+                    .build();
 
-            if (pythonResponse != null && pythonResponse.containsKey("vector")) {
-                embedding = (List<Double>) pythonResponse.get("vector");
+            // 4. Gửi đi và nhận kết quả
+            HttpResponse<String> pythonResponse = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            // 5. Kiểm tra mã trạng thái
+            if (pythonResponse.statusCode() == 200) {
+                ObjectMapper mapper = new ObjectMapper();
+                Map<String, Object> responseMap = mapper.readValue(pythonResponse.body(), Map.class);
+
+                if (responseMap.containsKey("vector")) {
+                    embedding = (List<Double>) responseMap.get("vector");
+                    log.info("[DEBUG] 🎉 Đã nhận thành công Vector từ Python AI!");
+                }
+            } else {
+                log.error("AI Service từ chối với status {}: {}", pythonResponse.statusCode(), pythonResponse.body());
+                embedding = null;
             }
         } catch (Exception e) {
-            log.warn("Lỗi khi gọi AI Service (Python có thể đang sập). Chuyển sang Fallback.", e);
+            log.error("Lỗi mạng khi gọi AI Service: {}", e.getMessage(), e);
             embedding = null;
         }
 
@@ -119,7 +153,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> esEntity = new HttpEntity<>(knnQuery, headers);
 
-            ResponseEntity<Map> esResponse = restTemplate.exchange(esSearchUrl, HttpMethod.POST, esEntity, Map.class);
+            ResponseEntity<Map> esResponse = restTemplate.exchange(esSearchUrl.trim(), HttpMethod.POST, esEntity, Map.class);
 
             // BÓC TÁCH KẾT QUẢ TỪ ES
             Map<String, Object> hitsObj = (Map<String, Object>) esResponse.getBody().get("hits");
@@ -220,7 +254,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
                 pythonHeaders.setContentType(MediaType.APPLICATION_JSON);
                 pythonHeaders.set("X-API-Key", "fpt-music4-project-secret-key-2026");
                 HttpEntity<Map<String, String>> pythonEntity = new HttpEntity<>(pythonRequest, pythonHeaders);
-                Map<String, Object> pythonResponse = restTemplate.postForObject(pythonEmbedUrl, pythonEntity, Map.class);
+                Map<String, Object> pythonResponse = restTemplate.postForObject(pythonEmbedUrl.trim(), pythonEntity, Map.class);
                 List<Double> vector = (List<Double>) pythonResponse.get("vector");
 
                 // Đẩy vào Elasticsearch lưu trữ
@@ -232,7 +266,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(esDoc, headers);
 
-                restTemplate.exchange(esIndexUrl + track.getId(), HttpMethod.PUT, entity, Map.class);
+                restTemplate.exchange(esIndexUrl.trim() + track.getId(), HttpMethod.PUT, entity, Map.class);
                 log.info("Đã đồng bộ thành công bài hát ID: {}", track.getId());
 
             } catch (Exception e) {
