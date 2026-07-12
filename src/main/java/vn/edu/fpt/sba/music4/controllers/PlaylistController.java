@@ -7,12 +7,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.AddTrackRequest;
 import vn.edu.fpt.sba.music4.dtos.request.PlaylistRequest;
 import vn.edu.fpt.sba.music4.dtos.response.PlaylistResponseDTO;
-import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO; // 🟢 Thêm import DTO bài hát
+import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.services.IPlaylistService;
 
 import java.util.List;
@@ -26,7 +28,6 @@ public class PlaylistController {
 
     private final IPlaylistService playlistService;
 
-    // 🟢 THÊM MỚI 1: Endpoint lấy chi tiết thông tin chung của Playlist theo ID
     @GetMapping("/{id}")
     @Operation(summary = "Lấy chi tiết thông tin Playlist", description = "Lấy thông tin cơ bản của một Playlist dựa theo ID")
     @ApiResponse(responseCode = "200", description = "Lấy chi tiết playlist thành công")
@@ -34,7 +35,6 @@ public class PlaylistController {
         return ResponseEntity.ok(playlistService.getPlaylistById(id));
     }
 
-    // 🟢 THÊM MỚI 2: Endpoint lấy danh sách toàn bộ bài hát của Playlist đó
     @GetMapping("/{id}/tracks")
     @Operation(summary = "Lấy danh sách bài hát của Playlist", description = "Lấy toàn bộ các bài hát nằm trong một Playlist cụ thể")
     @ApiResponse(responseCode = "200", description = "Lấy danh sách bài hát thành công")
@@ -49,7 +49,6 @@ public class PlaylistController {
         return new ResponseEntity<>(playlistService.createPlaylist(request), HttpStatus.CREATED);
     }
 
-    // 🛠️ FIX ĐỒNG BỘ: Đổi endpoint từ "/me" thành "/my-playlists" để ăn khớp với file usePlaylistStore.js của bồ
     @GetMapping("/my-playlists")
     @Operation(summary = "Lấy danh sách Playlist cá nhân", description = "Hiển thị toàn bộ playlist thuộc sở hữu của người dùng hiện tại")
     @ApiResponse(responseCode = "200", description = "Lấy danh sách thành công")
@@ -64,6 +63,17 @@ public class PlaylistController {
             @Parameter(description = "ID của Playlist cần cập nhật", example = "1") @PathVariable Integer id,
             @Valid @RequestBody PlaylistRequest request) {
         return ResponseEntity.ok(playlistService.updatePlaylist(id, request));
+    }
+
+    @PutMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Cập nhật hình ảnh Playlist", description = "Tải lên tệp ảnh để làm hình đại diện cho playlist")
+    @ApiResponse(responseCode = "200", description = "Cập nhật hình ảnh playlist thành công")
+    public ResponseEntity<PlaylistResponseDTO> uploadPlaylistImage(
+            @PathVariable Integer id,
+            @RequestParam("file") MultipartFile file) {
+        // Lưu ý: Bồ cần bổ sung hàm uploadPlaylistImage(Integer id, MultipartFile file) vào trong
+        // IPlaylistService và triển khai lưu file + gọi playlistRepository.save() ở PlaylistServiceImpl nhé.
+        return ResponseEntity.ok(playlistService.uploadPlaylistImage(id, file));
     }
 
     @DeleteMapping("/{id}")
