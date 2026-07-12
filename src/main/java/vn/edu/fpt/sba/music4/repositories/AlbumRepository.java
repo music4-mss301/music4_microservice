@@ -27,4 +27,8 @@ public interface AlbumRepository extends JpaRepository<Album, Integer> {
             nativeQuery = true)
     Page<Album> searchByName(@Param("keyword") String keyword, Pageable pageable);
     int countByArtistId(Integer artistId);
+
+    @Query(value = "SELECT a FROM Album a JOIN FETCH a.artist",
+            countQuery = "SELECT COUNT(a) FROM Album a")
+    Page<Album> findAllWithArtist(Pageable pageable);
 }

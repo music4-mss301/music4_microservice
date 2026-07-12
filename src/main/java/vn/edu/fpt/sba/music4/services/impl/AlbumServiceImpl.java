@@ -1,10 +1,11 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import vn.edu.fpt.sba.music4.dtos.response.AlbumCreateDTO;
-import vn.edu.fpt.sba.music4.dtos.response.AlbumResponseDTO;
-import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.*;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.entities.Track;
@@ -101,11 +102,68 @@ public class AlbumServiceImpl implements IAlbumService {
         );
     }
 
+    public AlbumDetailResponseDTO toDetailResponseDto(Album album) {
+        if (album == null) return null;
+
+        // 1. Ánh xạ Artist chủ quản với cấu trúc mới
+        ArtistResponseDTO artistDTO = null;
+        if (album.getArtist() != null) {
+            // Dùng constructor đầy đủ hoặc constructor rút gọn bồ đã định nghĩa
+            artistDTO = new ArtistResponseDTO(
+                    album.getArtist().getId(),
+                    album.getArtist().getName(),
+                    album.getArtist().getImg(),
+                    album.getArtist().getCover(),
+                    album.getArtist().getEmail(),
+                    album.getArtist().getUsername(), // Đảm bảo entity Artist có getUserName()
+                    album.getArtist().getTrackTotal(), // Đảm bảo entity Artist có getTrackTotal()
+                    album.getArtist().getAlbumTotal()  // Đảm bảo entity Artist có getAlbumTotal()
+            );
+        }
+
+        // 2. Lấy danh sách Tracks bằng cách gọi trực tiếp Repository (như đã sửa ở bước trước)
+        List<Track> tracks = trackRepository.findByAlbumId(album.getId());
+
+        List<TrackResponseDTO> trackList = tracks.stream()
+                .map(t -> new TrackResponseDTO(
+                        t.getId(),
+                        t.getName(),
+                        album.getName(),
+                        t.getImg(),
+                        t.getDuration(),
+                        t.getFilePath(),
+                        t.getPreviewPath(),
+                        t.getViewCount(),
+                        t.getUploadDate(),
+                        0,
+                        t.getTrackArtists() != null ? t.getTrackArtists().stream()
+                                .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
+                                .toList() : java.util.List.of()
+                )).toList();
+
+        return new AlbumDetailResponseDTO(
+                album.getId(),
+                album.getName(),
+                album.getImg(),
+                album.getUploadDate(),
+                album.getTrackTotal(),
+                artistDTO,
+                trackList
+        );
+    }
+
     @Override
     public List<AlbumResponseDTO> findAll() {
         return albumRepository.findAll().stream()
                 .map(this::toResponseDto)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true) // <--- THÊM CÁI NÀY VÀO
+    public Page<AlbumDetailResponseDTO> findAll(Pageable pageable) {
+        Page<Album> page = albumRepository.findAllWithArtist(pageable);
+        return page.map(album -> this.toDetailResponseDto(album));
     }
 
     // ok
