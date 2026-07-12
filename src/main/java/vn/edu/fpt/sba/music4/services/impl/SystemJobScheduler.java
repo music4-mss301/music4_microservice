@@ -19,10 +19,10 @@ public class SystemJobScheduler {
     private final ITrackingService trackingService;
     private final RestTemplate restTemplate;
 
-    @Value("${ai.service.url:http://ai-service:8000}")
+    @Value("${ai.service.url}")
     private String aiServiceUrl;
 
-    @Value("${elasticsearch.url:http://elasticsearch:9200}")
+    @Value("${elasticsearch.url}")
     private String elasticsearchUrl;
 
     @Scheduled(cron = "0 0 2 * * ?")

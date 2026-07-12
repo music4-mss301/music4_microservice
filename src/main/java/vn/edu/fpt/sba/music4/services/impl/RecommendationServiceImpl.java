@@ -1,6 +1,7 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
@@ -36,9 +37,14 @@ public class RecommendationServiceImpl implements IRecommendationService {
 
     private final RestTemplate restTemplate;
 
-    private final String PYTHON_EMBED_URL = "http://127.0.0.1:8000/api/ai/embed";
-    private final String ES_INDEX_URL = "http://127.0.0.1:9200/music_tracks/_doc/";
-    private final String ES_SEARCH_URL = "http://127.0.0.1:9200/music_tracks/_knn_search";
+    @Value("${app.python.embed.url}")
+    private String pythonEmbedUrl;
+
+    @Value("${app.elasticsearch.url}")
+    private String esIndexUrl;
+
+    @Value("${app.es.search.url}")
+    private String esSearchUrl;
 
     // === HÀM LẤY GỢI Ý BÀI HÁT ===
     @Override
@@ -50,43 +56,60 @@ public class RecommendationServiceImpl implements IRecommendationService {
             return getTrendingFallback();
         }
 
+        // --- BƯỚC 1: LẤY LỊCH SỬ NGHE NHẠC CỦA USER VÀ TẠO THÀNH CHUỖI 'TEXT' ---
+        Set<Integer> likedTrackIds = new HashSet<>();
+        historyRepository.findByUserId(userId).forEach(h -> likedTrackIds.add(h.getTrack().getId()));
+        favoriteRepository.findByUserId(userId).forEach(f -> likedTrackIds.add(f.getTrack().getId()));
+        ratingRepository.findByUserId(userId).stream()
+                .filter(r -> r.getRatingValue() >= 4).forEach(r -> likedTrackIds.add(r.getTrack().getId()));
+
+        if (likedTrackIds.isEmpty()) return getTrendingFallback();
+
+        List<Track> likedTracks = trackRepository.findAllById(likedTrackIds);
+        StringBuilder tasteProfileBuilder = new StringBuilder();
+        for (Track t : likedTracks) {
+            tasteProfileBuilder.append(t.getName()).append(" ");
+            t.getTrackCategories().forEach(tc -> tasteProfileBuilder.append(tc.getCategory().getName()).append(" "));
+            t.getTrackArtists().forEach(ta -> tasteProfileBuilder.append(ta.getArtist().getName()).append(" "));
+        }
+
+        String userTasteText = tasteProfileBuilder.toString().trim();
+        List<Double> embedding = null;
+
+        // --- BƯỚC 2: GỌI AI PYTHON ĐỂ LẤY VECTOR (CÓ TRY-CATCH ĐỘC LẬP) ---
         try {
-            // LẤY GU ÂM NHẠC CỦA USER
-            Set<Integer> likedTrackIds = new HashSet<>();
-            historyRepository.findByUserId(userId).forEach(h -> likedTrackIds.add(h.getTrack().getId()));
-            favoriteRepository.findByUserId(userId).forEach(f -> likedTrackIds.add(f.getTrack().getId()));
-            ratingRepository.findByUserId(userId).stream()
-                    .filter(r -> r.getRatingValue() >= 4).forEach(r -> likedTrackIds.add(r.getTrack().getId()));
+            log.info("Đang gọi AI Service để lấy Vector cho User ID: {}", userId);
 
-            if (likedTrackIds.isEmpty()) return getTrendingFallback();
-
-            List<Track> likedTracks = trackRepository.findAllById(likedTrackIds);
-
-            // Gom text của tất cả bài user thích để tạo thành 1 đoạn văn "Mô tả Gu"
-            StringBuilder tasteProfileBuilder = new StringBuilder();
-            for (Track t : likedTracks) {
-                tasteProfileBuilder.append(t.getName()).append(" ");
-                t.getTrackCategories().forEach(tc -> tasteProfileBuilder.append(tc.getCategory().getName()).append(" "));
-                t.getTrackArtists().forEach(ta -> tasteProfileBuilder.append(ta.getArtist().getName()).append(" "));
-            }
-
-            // PYTHON DỊCH "ĐOẠN VĂN GU" THÀNH VECTOR
             Map<String, String> pythonRequest = new HashMap<>();
-            pythonRequest.put("text", tasteProfileBuilder.toString());
-
+            pythonRequest.put("text", userTasteText);
 
             HttpHeaders pythonHeaders = new HttpHeaders();
             pythonHeaders.setContentType(MediaType.APPLICATION_JSON);
             pythonHeaders.set("X-API-Key", "fpt-music4-project-secret-key-2026");
-            HttpEntity<Map<String, String>> pythonEntity = new HttpEntity<>(pythonRequest, pythonHeaders);
-            Map<String, Object> pythonResponse = restTemplate.postForObject(PYTHON_EMBED_URL, pythonEntity, Map.class);
-            List<Double> userTasteVector = (List<Double>) pythonResponse.get("vector");
 
-            // ĐEM VECTOR ĐÓ SANG ELASTICSEARCH ĐỂ K-NN SEARCH
+            HttpEntity<Map<String, String>> pythonEntity = new HttpEntity<>(pythonRequest, pythonHeaders);
+            Map<String, Object> pythonResponse = restTemplate.postForObject(pythonEmbedUrl, pythonEntity, Map.class);
+
+            if (pythonResponse != null && pythonResponse.containsKey("vector")) {
+                embedding = (List<Double>) pythonResponse.get("vector");
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi khi gọi AI Service (Python có thể đang sập). Chuyển sang Fallback.", e);
+            embedding = null;
+        }
+
+        // --- BƯỚC 3: XỬ LÝ FALLBACK ---
+        if (embedding == null || embedding.isEmpty()) {
+            // Nếu AI sập -> Trả về nhạc Trending
+            return getTrendingFallback();
+        }
+
+        // --- BƯỚC 4: ĐEM VECTOR SANG ELASTICSEARCH K-NN SEARCH (CÓ TRY-CATCH RIÊNG BẢO VỆ) ---
+        try {
             Map<String, Object> knnQuery = new HashMap<>();
             Map<String, Object> knnParams = new HashMap<>();
             knnParams.put("field", "vector_data");
-            knnParams.put("query_vector", userTasteVector);
+            knnParams.put("query_vector", embedding);
             knnParams.put("k", 15);
             knnParams.put("num_candidates", 100);
             knnQuery.put("knn", knnParams);
@@ -96,7 +119,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<Map<String, Object>> esEntity = new HttpEntity<>(knnQuery, headers);
 
-            ResponseEntity<Map> esResponse = restTemplate.exchange(ES_SEARCH_URL, HttpMethod.POST, esEntity, Map.class);
+            ResponseEntity<Map> esResponse = restTemplate.exchange(esSearchUrl, HttpMethod.POST, esEntity, Map.class);
 
             // BÓC TÁCH KẾT QUẢ TỪ ES
             Map<String, Object> hitsObj = (Map<String, Object>) esResponse.getBody().get("hits");
@@ -140,7 +163,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
                     .collect(Collectors.toList());
 
         } catch (Exception e) {
-            log.error("Lỗi hệ thống AI: {}", e.getMessage());
+            log.error("Lỗi khi tìm kiếm trên Elasticsearch: {}", e.getMessage());
             return getTrendingFallback();
         }
     }
@@ -197,7 +220,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
                 pythonHeaders.setContentType(MediaType.APPLICATION_JSON);
                 pythonHeaders.set("X-API-Key", "fpt-music4-project-secret-key-2026");
                 HttpEntity<Map<String, String>> pythonEntity = new HttpEntity<>(pythonRequest, pythonHeaders);
-                Map<String, Object> pythonResponse = restTemplate.postForObject(PYTHON_EMBED_URL, pythonEntity, Map.class);
+                Map<String, Object> pythonResponse = restTemplate.postForObject(pythonEmbedUrl, pythonEntity, Map.class);
                 List<Double> vector = (List<Double>) pythonResponse.get("vector");
 
                 // Đẩy vào Elasticsearch lưu trữ
@@ -209,7 +232,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
                 headers.setContentType(MediaType.APPLICATION_JSON);
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(esDoc, headers);
 
-                restTemplate.exchange(ES_INDEX_URL + track.getId(), HttpMethod.PUT, entity, Map.class);
+                restTemplate.exchange(esIndexUrl + track.getId(), HttpMethod.PUT, entity, Map.class);
                 log.info("Đã đồng bộ thành công bài hát ID: {}", track.getId());
 
             } catch (Exception e) {
