@@ -55,7 +55,12 @@ public class ArtistController {
 
     @GetMapping("/top3")
     public ResponseEntity<List<Map<String, Object>>> getTop3Artists() {
-        // Giả định bạn đã tạo hàm getTop3Artists() trong IArtistService
         return ResponseEntity.ok(iArtistService.getTop3Artists());
     }
+
+    @GetMapping("/{id}/followers")
+    public ResponseEntity<?> getFollowersByArtistId(@PathVariable Integer id) {
+        return ResponseEntity.ok(iArtistService.getFollowersByArtistId(id));
+    }
+
 }
