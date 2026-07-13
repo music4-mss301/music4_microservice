@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import vn.edu.fpt.sba.music4.services.IRecommendationService;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class ElasticsearchIndexInitializer implements ApplicationRunner {
 
     private final RestTemplate restTemplate;
+    private final IRecommendationService recommendationService;
 
     @Value("${elasticsearch.url}")
     private String esBaseUrl;
@@ -43,6 +45,8 @@ public class ElasticsearchIndexInitializer implements ApplicationRunner {
             // 2. Nếu chưa có (404) -> tạo mới
             log.warn("[ES-INIT] Index '{}' chưa tồn tại. Đang tạo mới...", indexName);
             createIndex(indexUrl);
+            log.info("[ES-INIT] Index mới rỗng -> Kích hoạt đồng bộ dữ liệu ngay lập tức...");
+            recommendationService.syncTracksToElasticsearch();
         } catch (Exception e) {
             log.error("[ES-INIT] Không thể kiểm tra index '{}': {}", indexName, e.getMessage(), e);
         }
