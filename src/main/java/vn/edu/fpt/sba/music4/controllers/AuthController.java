@@ -53,17 +53,20 @@ public class AuthController {
         UserDetails user = (UserDetails) authentication.getPrincipal();
         Integer id = null;
         String img = null;
+        String name = null;
         String source = "";
         String role = user.getAuthorities().iterator().next().getAuthority();
 
         if (user instanceof Artist) {
             Artist artist = (Artist) user;
             id = artist.getId();
+            name = artist.getName();
             img = artist.getImg();
             source = "artist";
         } else if (user instanceof vn.edu.fpt.sba.music4.entities.User) {
             vn.edu.fpt.sba.music4.entities.User u = (vn.edu.fpt.sba.music4.entities.User) user;
             id = u.getId();
+            name = u.getName();
             img = u.getImg();
             source = "user";
         }
@@ -71,7 +74,7 @@ public class AuthController {
         String accessToken = jwtUtil.generateToken(user);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername(), source);
 
-        return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken(), id, user.getUsername(), img, role));
+        return ResponseEntity.ok(new TokenResponse(accessToken, refreshToken.getToken(), id, user.getUsername(), name, img, role));
     }
 
     @PostMapping("/refresh")
@@ -83,22 +86,25 @@ public class AuthController {
 
         Integer id = null;
         String img = null;
+        String name  = null;
         String role = user.getAuthorities().iterator().next().getAuthority();
 
         if (user instanceof Artist) {
             Artist artist = (Artist) user;
             id = artist.getId();
+            name = artist.getName();
             img = artist.getImg();
         } else if (user instanceof vn.edu.fpt.sba.music4.entities.User) {
             vn.edu.fpt.sba.music4.entities.User u = (vn.edu.fpt.sba.music4.entities.User) user;
             id = u.getId();
+            name = u.getName();
             img = u.getImg();
         }
 
         String newAccess = jwtUtil.generateToken(user);
         RefreshToken newRt = refreshTokenService.rotate(rt);
 
-        return ResponseEntity.ok(new TokenResponse(newAccess, newRt.getToken(), id, user.getUsername(), img, role));
+        return ResponseEntity.ok(new TokenResponse(newAccess, newRt.getToken(), id, user.getUsername(), name, img, role));
     }
 
     @PostMapping("/logout")
