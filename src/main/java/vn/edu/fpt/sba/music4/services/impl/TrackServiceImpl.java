@@ -27,6 +27,7 @@ public class TrackServiceImpl implements ITrackService {
     private TrackArtistRepository trackArtistRepository;
     private ArtistRepository artistRepository;
     private final AWSUtil awsUtil;
+    private final vn.edu.fpt.sba.music4.services.INotificationService notificationService;
 
     public TrackServiceImpl(TrackRepository trackRepository,
                             AlbumRepository albumRepository,
@@ -34,7 +35,8 @@ public class TrackServiceImpl implements ITrackService {
                             TrackCategoryRepository trackCategoryRepository,
                             TrackArtistRepository trackArtistRepository,
                             ArtistRepository artistRepository,
-                            AWSUtil awsUtil) {
+                            AWSUtil awsUtil,
+                            vn.edu.fpt.sba.music4.services.INotificationService notificationService) {
         this.trackRepository = trackRepository;
         this.albumRepository = albumRepository;
         this.categoryRepository = categoryRepository;
@@ -42,6 +44,7 @@ public class TrackServiceImpl implements ITrackService {
         this.trackArtistRepository = trackArtistRepository;
         this.artistRepository = artistRepository;
         this.awsUtil = awsUtil;
+        this.notificationService = notificationService;
     }
 
     // @Autowired
@@ -82,6 +85,7 @@ public class TrackServiceImpl implements ITrackService {
             Track savedTrack = trackRepository.save(track);
 
             // 5. Xử lý lưu Thể loại nhạc (Category) vào bảng trung gian
+            List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackId(savedTrack.getId());
             saveTrackCategories(savedTrack, dto.getCategoryIds());
 
             // 6. XỬ LÝ LƯU NGHỆ SĨ (TRACK_ARTIST) CHUẨN XÁC VÀ AN TOÀN CHỐNG TRÙNG:
@@ -106,6 +110,8 @@ public class TrackServiceImpl implements ITrackService {
 
             // Gọi hàm để lưu toàn bộ danh sách nghệ sĩ này vào bảng trung gian TrackArtist
             saveTrackArtists(savedTrack, finalArtistIds);
+
+            notificationService.sendNewTrackNotification(savedTrack);
 
             // 7. 🚨 QUYẾT ĐỊNH: Chuyển đổi sang Record DTO sạch trước khi trả về Controller
             // Sử dụng hàm toDetailResponseDto bạn đã viết ở cuối file để bóc tách sạch sẽ dữ liệu quan hệ vừa lưu thành công!
@@ -179,11 +185,14 @@ public class TrackServiceImpl implements ITrackService {
                 // Lưu bài hát xuống DB
                 Track savedTrack = trackRepository.save(track);
 
-                // Lưu các bảng trung gian liên quan
+                // Lưu các bảng trung gian liên
+                List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackId(savedTrack.getId());
                 saveTrackCategories(savedTrack, dto.getCategoryIds());
 
                 // Truyền mảng nghệ sĩ đã gom chuẩn vào đây (Hàm này cũng tự động cộng trackTotal cho Nghệ sĩ luôn rồi)
                 saveTrackArtists(savedTrack, finalArtistIds);
+
+                notificationService.sendNewTrackNotification(savedTrack);
             }
 
         } catch (Exception e) {
