@@ -5,6 +5,7 @@ public record TokenResponse(
         String refreshToken,
         Integer id,          // Thêm ID
         String username,     // Thêm Username
+        String name,
         String img,          // Thêm link ảnh đại diện
         String role          // Thêm Role
 ) {}

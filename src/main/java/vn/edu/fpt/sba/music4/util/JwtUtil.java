@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import vn.edu.fpt.sba.music4.entities.Artist;
+import vn.edu.fpt.sba.music4.entities.User;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -25,12 +26,29 @@ public class JwtUtil {
         // xác định source để filter sau này biết load từ bảng nào
         String source = (user instanceof Artist) ? "artist" : "user";
         String role   = user.getAuthorities().iterator().next().getAuthority();
+        if(user instanceof Artist) {
+            Artist castArtist = (Artist) user;
+            return Jwts.builder()
+                    .subject(user.getUsername())
+                    .claim("id", castArtist.getId())
+                    .claim("img", castArtist.getImg())
+                    .claim("role",   role)
+                    .claim("source", source)
+                    .issuedAt(new Date())
+                    .expiration(new Date(System.currentTimeMillis() + expMs))
+                    .signWith(key())
+                    .compact();
+        }
+
+        User castUser = (User) user;
 
         System.out.println("Role: " + role);
         System.out.println("Username: " + user.getUsername());
 
         return Jwts.builder()
                 .subject(user.getUsername())
+                .claim("id", castUser.getId())
+                .claim("img", castUser.getImg())
                 .claim("role",   role)
                 .claim("source", source)   // <-- key point
                 .issuedAt(new Date())
