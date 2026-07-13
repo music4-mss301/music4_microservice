@@ -16,6 +16,7 @@ import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.IRecommendationService;
 
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -51,7 +52,11 @@ public class RecommendationController {
                 .orElse(null);
 
         if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Tài khoản không tồn tại!");
+            return ResponseEntity.ok(Collections.emptyList());
+        }
+
+        if ("ARTIST".equalsIgnoreCase(user.getRole())) {
+            return ResponseEntity.ok(Collections.emptyList());
         }
 
         // 4. Truyền đúng userId cho AI xử lý
@@ -66,6 +71,17 @@ public class RecommendationController {
             @ApiResponse(responseCode = "500", description = "Lỗi hệ thống trong quá trình khởi tạo đồng bộ")
     })
     public ResponseEntity<String> syncDataToElasticsearch() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated() || auth.getName().equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập để sử dụng tính năng này!");
+        }
+
+        User user = userRepository.findByUserName(auth.getName()).orElse(null);
+        if (user == null || !"ADMIN".equalsIgnoreCase(user.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Chỉ ADMIN mới được phép đồng bộ dữ liệu!");
+        }
+
         recommendationService.syncTracksToElasticsearch();
         return ResponseEntity.accepted().body("Tiến trình đồng bộ Vector đang được chạy ngầm. Vui lòng kiểm tra màn hình console (log) của hệ thống để xem tiến độ!");
     }
