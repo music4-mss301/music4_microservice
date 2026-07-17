@@ -78,9 +78,12 @@ public class SearchServiceImpl implements ISearchService {
             ));
 
             Page<PlaylistResponseDTO> playlistDTOPage = playlistPage.map(playlist -> new PlaylistResponseDTO(
-                    playlist.getId(), playlist.getName(),
+                    playlist.getId(),
+                    playlist.getName(),
                     playlist.getUser() != null ? playlist.getUser().getId() : null,
-                    playlist.getName()
+                    playlist.getUser() != null ? playlist.getUser().getUsername() : null, // 🟢 Sửa lại lấy đúng username
+                    playlist.getDescription(),
+                    playlist.getImg()
             ));
 
             Page<CategoryResponseDTO> categoryDTOPage = categoryPage.map(category -> new CategoryResponseDTO(
@@ -124,9 +127,12 @@ public class SearchServiceImpl implements ISearchService {
             }
             case "playlist" -> {
                 Page<PlaylistResponseDTO> playlistDTOPage = playlistRepository.searchByName(cleanKey, pageable).map(playlist -> new PlaylistResponseDTO(
-                        playlist.getId(), playlist.getName(),
+                        playlist.getId(),
+                        playlist.getName(),
                         playlist.getUser() != null ? playlist.getUser().getId() : null,
-                        playlist.getName()
+                        playlist.getUser() != null ? playlist.getUser().getUsername() : null,
+                        playlist.getDescription(),
+                        playlist.getImg()
                 ));
                  yield new SearchResultResponseDTO(null, null, null, playlistDTOPage, null);
             }

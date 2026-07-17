@@ -4,6 +4,8 @@ public record PlaylistResponseDTO(
         Integer id,
         String name,
         Integer userId,
-        String userName
+        String userName,
+        String description,
+        String img
 ) {
 }

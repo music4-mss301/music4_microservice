@@ -19,6 +19,11 @@ public class Playlist {
     @Column(nullable = false, columnDefinition = "NVARCHAR(100)", length = 100)
     private String name;
 
+    @Column(columnDefinition = "NVARCHAR(MAX)")
+    private String description;
+
+    @Column(length = 255)
+    private String img;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
