@@ -13,7 +13,11 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.ArtistRequestDTO;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.response.ArtistResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Artist;
+import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
+import vn.edu.fpt.sba.music4.repositories.FollowRepository;
+import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.IArtistService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
@@ -166,6 +170,27 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     public List<Map<String, Object>> getTop3Artists() {
         return artistRepository.getTop3Artists();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> getFollowersByArtistId(Integer artistId) {
+        if (!artistRepository.existsById(artistId)) {
+            throw new RuntimeException("Không tìm thấy nghệ sĩ với ID: " + artistId);
+        }
+
+        return followRepository.findFollowersByArtistId(artistId).stream()
+                .map(follow -> new UserResponseDTO(
+                        follow.getUser().getId(),
+                        follow.getUser().getName(),
+                        follow.getUser().getImg(),
+                        follow.getUser().getEmail(),
+                        follow.getUser().getGender(),
+                        null,
+                        follow.getUser().getUsername()
+                ))
+                .toList();
+    }
+
 
     @Override
     @Transactional

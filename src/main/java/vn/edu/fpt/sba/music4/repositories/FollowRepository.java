@@ -24,4 +24,7 @@ public interface FollowRepository extends JpaRepository<Follow, Integer> {
 
 
 
+
+    @Query("SELECT f FROM Follow f JOIN FETCH f.user WHERE f.artist.id = :artistId")
+    List<Follow> findFollowersByArtistId(@Param("artistId") Integer artistId);
 }

@@ -65,4 +65,10 @@ public class ArtistController {
     }
 
 
+
+    @GetMapping("/{id}/followers")
+    public ResponseEntity<?> getFollowersByArtistId(@PathVariable Integer id) {
+        return ResponseEntity.ok(iArtistService.getFollowersByArtistId(id));
+    }
+
 }
