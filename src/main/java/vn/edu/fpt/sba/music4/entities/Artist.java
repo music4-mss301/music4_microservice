@@ -19,7 +19,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Where(clause = "is_deleted = 0")
+@Where(clause = "is_deleted = false")
 public class Artist implements UserDetails {
 
     @Id

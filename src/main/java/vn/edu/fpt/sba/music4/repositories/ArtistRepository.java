@@ -41,8 +41,8 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     Optional<Artist> findByUserName(String userName);
 
-    @Query(value = "SELECT * FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' ORDER BY name ASC",
-            countQuery = "SELECT COUNT(*) FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%'",
+    @Query(value = "SELECT * FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' AND is_deleted = 0 ORDER BY name ASC",
+            countQuery = "SELECT COUNT(*) FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' AND is_deleted = 0",
             nativeQuery = true)
     Page<Artist> searchByName(@Param("keyword") String keyword, Pageable pageable);
 
