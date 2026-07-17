@@ -1,5 +1,6 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
@@ -20,10 +21,7 @@ import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.entities.UserProvider;
 import vn.edu.fpt.sba.music4.enums.ERole;
 import vn.edu.fpt.sba.music4.exceptions.AccessDeniedException;
-import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
-import vn.edu.fpt.sba.music4.repositories.ProviderRepository;
-import vn.edu.fpt.sba.music4.repositories.UserProviderRepository;
-import vn.edu.fpt.sba.music4.repositories.UserRepository;
+import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.IUserService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
 import vn.edu.fpt.sba.music4.util.SecurityUtil;
@@ -41,13 +39,28 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
     private final ProviderRepository providerRepository;
     private final UserProviderRepository userProviderRepository;
     private final AWSUtil aWSUtil;
-
-    public UserServiceImpl(UserRepository userRepository, ArtistRepository artistRepository, ProviderRepository providerRepository, UserProviderRepository userProviderRepository, AWSUtil aWSUtil) {
+    private final FavoriteRepository favoriteRepository;
+    private final PlaylistRepository playlistRepository;
+    private final PlaylistTrackRepository playlistTrackRepository;
+    private final  NotificationRepository notificationRepository;
+    private final HistoryRepository historyRepository;
+    public UserServiceImpl(UserRepository userRepository, ArtistRepository artistRepository,
+                           ProviderRepository providerRepository,
+                           UserProviderRepository userProviderRepository, AWSUtil aWSUtil,
+     FavoriteRepository favoriteRepository, PlaylistRepository playlistRepository,
+                           PlaylistTrackRepository playlistTrackRepository,
+                           NotificationRepository notificationRepository,
+                           HistoryRepository historyRepository) {
         this.userRepository = userRepository;
         this.artistRepository = artistRepository;
         this.providerRepository = providerRepository;
         this.userProviderRepository = userProviderRepository;
         this.aWSUtil = aWSUtil;
+        this.favoriteRepository = favoriteRepository;
+        this.playlistRepository = playlistRepository;
+        this.playlistTrackRepository = playlistTrackRepository;
+        this.notificationRepository = notificationRepository;
+        this.historyRepository = historyRepository;
     }
 
     @Override
@@ -202,6 +215,26 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
         userProviderRepository.save(newUserProvider);
 
         return user;
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteUser(Integer userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy User với ID: " + userId));
+
+        // 2. Gọi AWSUtil để xóa ảnh đại diện (avatar) trên S3 giải phóng dung lượng
+        aWSUtil.deleteFile(user.getImg());
+        user.setImg(null);
+        // 1. Dọn dẹp Tokens và User Providers (OAuth)
+       // 2. Dọn bài hát yêu thích (Favorites)
+        favoriteRepository.deleteByUserId(userId);
+
+        // 3. Dọn dẹp Playlist (Phải xóa PlaylistTrack trước)
+        playlistTrackRepository.deletePlaylistTracksByUserId(userId);
+        playlistRepository.deleteByUserId(userId);
+        notificationRepository.deleteByUserId(userId);
+        userRepository.softDeleteUserById(userId);
     }
 
 

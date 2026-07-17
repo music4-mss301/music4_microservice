@@ -28,4 +28,5 @@ public interface IArtistService {
 
     List<UserResponseDTO> getFollowersByArtistId(Integer artistId);
 
+    public void softDeleteArtist(Integer artistId);
 }

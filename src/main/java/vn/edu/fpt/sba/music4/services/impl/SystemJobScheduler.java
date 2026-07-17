@@ -25,20 +25,6 @@ public class SystemJobScheduler {
     @Value("${elasticsearch.url}")
     private String elasticsearchUrl;
 
-    @Scheduled(cron = "0 0 2 * * ?")
-//    @Scheduled(fixedRate = 60000)
-    public void scheduleElasticsearchSync() {
-        log.info("[CRONJOB] Bắt đầu tiến trình tự động đồng bộ nhạc lên Elasticsearch lúc rạng sáng...");
-        recommendationService.syncTracksToElasticsearch();
-    }
-
-    @Scheduled(cron = "0 0 3 * * SUN")
-//    @Scheduled(fixedRate = 60000)
-    public void scheduleHistoryCleanup() {
-        log.info("[CRONJOB] Bắt đầu dọn dẹp Database lịch sử rác...");
-        trackingService.cleanupHistory();
-    }
-
     @Scheduled(fixedRate = 300000) // 5 phút check 1 lần
     public void healthCheckMicroservices() {
         log.info("[HEALTH CHECK] Đang kiểm tra kết nối tới các Microservices...");

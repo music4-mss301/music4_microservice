@@ -62,4 +62,8 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     ORDER BY day
     """, nativeQuery = true)
     List<Map<String, Object>> getDailyAnalyticsByArtist(@Param("artistId") Integer artistId);
+    void deleteByUserId(Integer userId);
+    @Modifying
+    @Query("DELETE FROM History h WHERE h.track.id IN (SELECT ta.track.id FROM TrackArtist ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN')")
+    void deleteHistoryByMainArtist(@Param("artistId") Integer artistId);
 }

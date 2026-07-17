@@ -14,10 +14,13 @@ import vn.edu.fpt.sba.music4.dtos.request.ArtistRequestDTO;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.response.ArtistResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
+import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.entities.Artist;
+import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.FollowRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
+import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.IArtistService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
 
@@ -30,10 +33,18 @@ import java.util.Map;
 public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
-    private final FollowRepository followRepository;
     private final AWSUtil aWSUtil;
-
-
+    private final TrackArtistRepository trackArtistRepository;
+    private final FollowRepository followRepository;
+    private final TrackRepository trackRepository;
+    private final CommentRepository commentRepository;
+    private final NotificationRepository notificationRepository;
+    private final RatingRepository ratingRepository;
+    private final FavoriteRepository favoriteRepository;
+    private final HistoryRepository historyRepository;
+    private final PlaylistRepository playlistRepository;
+    private final PlaylistTrackRepository playlistTrackRepository;
+    private final AlbumRepository albumRepository;
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return this.artistRepository.findByUserName(username)
@@ -190,4 +201,66 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
                 .toList();
     }
 
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void softDeleteArtist(Integer artistId) {
+        // 1. Tìm thông tin nghệ sĩ, nếu không có thì dừng luôn
+        Artist artist = artistRepository.findById(artistId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy Nghệ sĩ với ID: " + artistId));
+
+        // ==========================================
+        // 2. XÓA CỨNG BÀI HÁT (TRACK) & DỌN FILE S3
+        // ==========================================
+        List<Track> mainTracks = trackRepository.findMainTracksByArtistId(artistId);
+
+        // Gọi AWS dọn dẹp sạch sẽ file âm thanh và ảnh bìa bài hát
+        for (Track track : mainTracks) {
+            if (track.getFilePath() != null) aWSUtil.deleteFile(track.getFilePath());
+            if (track.getPreviewPath() != null) aWSUtil.deleteFile(track.getPreviewPath());
+            if (track.getImg() != null) aWSUtil.deleteFile(track.getImg());
+        }
+
+        // Dọn dẹp dữ liệu tương tác của người dùng liên quan đến các bài hát này
+        if (!mainTracks.isEmpty()) {
+            commentRepository.deleteCommentsByArtistOrMainTrack(artistId);
+            notificationRepository.deleteNotificationsByArtistOrMainTrack(artistId);
+            ratingRepository.deleteRatingsByMainArtist(artistId);
+            favoriteRepository.deleteFavoritesByMainArtist(artistId);
+            historyRepository.deleteHistoryByMainArtist(artistId);
+            playlistTrackRepository.deletePlaylistTracksByMainArtist(artistId);
+        }
+
+        // Gỡ tên nghệ sĩ khỏi các bài hát mà họ chỉ hát phụ (FEAT)
+        trackArtistRepository.removeFeatRoleByArtistId(artistId);
+
+        // Xóa cứng toàn bộ bài hát MAIN (Tự động Cascade xóa sạch dữ liệu trung gian)
+        trackRepository.deleteAll(mainTracks);
+
+        // ==========================================
+        // 3. XÓA CỨNG ALBUM & DỌN FILE S3
+        // ==========================================
+        List<Album> albums = albumRepository.findByArtistId(artistId);
+
+        // Xóa ảnh bìa Album trên AWS
+        for (Album album : albums) {
+            if (album.getImg() != null) aWSUtil.deleteFile(album.getImg());
+        }
+
+        // Xóa cứng Album dưới DB
+        albumRepository.deleteAll(albums);
+
+        // ==========================================
+        // 4. CHỐT HẠ: XÓA MỀM NGHỆ SĨ
+        // ==========================================
+        // Xóa cứng người theo dõi vì nghệ sĩ đã bị ẩn
+        followRepository.deleteFollowers(artistId);
+
+        artist.setIsDeleted(true);
+        artist.setImg(null);
+        artist.setTrackTotal(0);
+        artist.setAlbumTotal(0);
+        aWSUtil.deleteFile(artist.getImg());
+        artistRepository.save(artist);
+    }
 }

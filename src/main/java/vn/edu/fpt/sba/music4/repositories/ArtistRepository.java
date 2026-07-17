@@ -3,6 +3,7 @@ package vn.edu.fpt.sba.music4.repositories;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -40,8 +41,8 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     Optional<Artist> findByUserName(String userName);
 
-    @Query(value = "SELECT * FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' ORDER BY name ASC",
-            countQuery = "SELECT COUNT(*) FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%'",
+    @Query(value = "SELECT * FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' AND is_deleted = 0 ORDER BY name ASC",
+            countQuery = "SELECT COUNT(*) FROM ARTISTS WHERE REPLACE(LOWER(name), '-', ' ') COLLATE Latin1_General_CI_AI LIKE N'%' + :keyword + '%' AND is_deleted = 0",
             nativeQuery = true)
     Page<Artist> searchByName(@Param("keyword") String keyword, Pageable pageable);
 
@@ -81,4 +82,10 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
         t.view_count DESC
     """, nativeQuery = true)
     List<Map<String, Object>> getTopTracksByArtist(@Param("artistId") Integer artistId);
+    @Modifying
+    @Query("UPDATE Artist a SET a.isDeleted = true WHERE a.id = :id")
+    void softDeleteArtistById(@Param("id") Integer id);
+
+
+
 }

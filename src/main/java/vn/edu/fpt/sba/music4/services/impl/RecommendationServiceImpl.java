@@ -179,6 +179,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
             return finalTracks.stream()
                     .map(track -> {
                         List<TrackArtistInfo> artistInfos = track.getTrackArtists().stream()
+                                .filter(ta -> ta.getArtist() != null)
                                 .map(ta -> new TrackArtistInfo(
                                         ta.getArtist().getId(),
                                         ta.getArtist().getName(),
@@ -211,6 +212,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
                 .map(track -> {
                     // Map danh sách nghệ sĩ
                     List<TrackArtistInfo> artistInfos = track.getTrackArtists().stream()
+                            .filter(ta -> ta.getArtist() != null)
                             .map(ta -> new TrackArtistInfo(
                                     ta.getArtist().getId(),
                                     ta.getArtist().getName(),

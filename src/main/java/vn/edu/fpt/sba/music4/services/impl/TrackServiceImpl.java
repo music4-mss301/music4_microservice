@@ -555,6 +555,7 @@ public class TrackServiceImpl implements ITrackService {
 
         if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
             artistList = dbTrackArtists.stream()
+                    .filter(ta -> ta.getArtist() != null)
                     .map(ta -> new TrackArtistInfo(
                             ta.getArtist().getId(),
                             ta.getArtist().getName(),
