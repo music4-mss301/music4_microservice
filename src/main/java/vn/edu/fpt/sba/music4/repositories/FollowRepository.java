@@ -1,8 +1,11 @@
 package vn.edu.fpt.sba.music4.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.sba.music4.entities.Follow;
+import vn.edu.fpt.sba.music4.entities.PlaylistTrack;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,4 +18,10 @@ public interface FollowRepository extends JpaRepository<Follow, Integer> {
     List<Follow> findByArtistId(Integer artistId);
 
     List<Follow> findByUserId(Integer userId);
+
+    @Query("DELETE FROM Follow f WHERE f.artist.id = :artistId")
+    Void deleteFollowers(@Param("artistId") Integer artistId);
+
+
+
 }

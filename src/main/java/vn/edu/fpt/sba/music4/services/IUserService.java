@@ -20,6 +20,8 @@ public interface IUserService {
     UserResponseDTO getById(Integer userId);
     User processOAuthPostLogin(OAuth2User oAuth2User, String providerName);
 
+    void softDeleteUser(Integer userId);
+
 }
 
 

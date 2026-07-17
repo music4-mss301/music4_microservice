@@ -35,10 +35,13 @@ public class SearchServiceImpl implements ISearchService {
     }
     private String cleanKeyword(String keyword) {
         if (keyword == null) return "";
-        String normalized = Normalizer.normalize(keyword, Normalizer.Form.NFD);
-        String noAccent = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
-                .matcher(normalized).replaceAll("");
-        return noAccent.toLowerCase().replace("-", " ");
+
+        // Loại bỏ khoảng trắng thừa ở 2 đầu
+        String trimmed = keyword.trim();
+
+        // Chỉ chuyển về chữ thường và thay thế dấu '-' thành khoảng trắng.
+        // Bỏ logic Normalizer để giữ nguyên dấu tiếng Việt (như ề, à) cho DB xử lý.
+        return trimmed.toLowerCase().replace("-", " ");
     }
     private TrackResponseDTO mapToTrackDTO(Track track) {
         String albumName = track.getAlbum() != null ? track.getAlbum().getName() : "Single";

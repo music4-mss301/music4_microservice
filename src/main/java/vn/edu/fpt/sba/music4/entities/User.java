@@ -7,6 +7,7 @@ import lombok.*;
 import java.util.Collection;
 import java.util.List;
 
+import org.hibernate.annotations.Where;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Where(clause = "is_deleted = false")
 @Data
 public class User implements UserDetails {
 
@@ -55,6 +57,8 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<UserProvider> userProviders;
 
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
     public User(String name, String img, String email, String username, String password, String role) {
         this.name = name;
         this.img = img;

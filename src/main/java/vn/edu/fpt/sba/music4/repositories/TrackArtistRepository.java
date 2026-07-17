@@ -14,4 +14,11 @@ public interface TrackArtistRepository extends JpaRepository<TrackArtist, Intege
     List<TrackArtist> findByTrackId(Integer trackId);
     @Query("SELECT ta FROM TrackArtist ta JOIN FETCH ta.artist WHERE ta.track.id = :trackId")
     List<TrackArtist> findByTrackIdWithArtist(@Param("trackId") Integer trackId);
+
+    @Query("UPDATE Track t SET t.isDeleted = true \n" +
+            "WHERE t.id IN (SELECT ta.track.id FROM TrackArtist ta WHERE ta.artist.id = :artistId)")
+   Void softDeleteTrack(@Param("artistId") Integer artistId);
+
+
+
 }

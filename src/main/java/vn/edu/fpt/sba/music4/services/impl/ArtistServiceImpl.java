@@ -14,8 +14,7 @@ import vn.edu.fpt.sba.music4.dtos.request.ArtistRequestDTO;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.response.ArtistResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Artist;
-import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
-import vn.edu.fpt.sba.music4.repositories.UserRepository;
+import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.IArtistService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
 
@@ -29,7 +28,8 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
     private final AWSUtil aWSUtil;
-
+    private final TrackArtistRepository trackArtistRepository;
+    private final FollowRepository followRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -165,5 +165,18 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     @Override
     public List<Map<String, Object>> getTop3Artists() {
         return artistRepository.getTop3Artists();
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteArtist(Integer artistId) {
+    followRepository.deleteFollowers(artistId);
+    trackArtistRepository.softDeleteTrack(artistId);
+
+    Artist artist = artistRepository.findById(artistId)
+            .orElseThrow(() -> new RuntimeException("Artist not found with id: " + artistId));
+    if (artist!=null){
+        artistRepository.softDeleteArtistById(artistId);
+    }
     }
 }
