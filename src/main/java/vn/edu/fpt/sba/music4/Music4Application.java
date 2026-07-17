@@ -23,7 +23,7 @@ public class Music4Application {
 
     public static void main(String[] args) {
         Dotenv dotenv = Dotenv.configure()
-                .directory("./Music4-Backend") // Specify the directory where the .env.local file is located
+//                .directory("./Music4-Backend") // Specify the directory where the .env.local file is located
                 .ignoreIfMissing() // Ignore if file is missing
                 .load();
 
