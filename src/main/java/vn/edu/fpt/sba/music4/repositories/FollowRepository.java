@@ -19,9 +19,9 @@ public interface FollowRepository extends JpaRepository<Follow, Integer> {
     List<Follow> findByArtistId(Integer artistId);
 
     List<Follow> findByUserId(Integer userId);
-
+    @Modifying
     @Query("DELETE FROM Follow f WHERE f.artist.id = :artistId")
-    Void deleteFollowers(@Param("artistId") Integer artistId);
+    void deleteFollowers(@Param("artistId") Integer artistId);
 
 
 

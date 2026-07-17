@@ -47,4 +47,7 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             "LEFT JOIN FETCH ta.artist " +
             "WHERE t.id IN (SELECT ta2.track.id FROM TrackArtist ta2 WHERE ta2.artist.id = :artistId)")
     List<Track> findTracksByArtistIdWithAllDetails(@Param("artistId") Integer artistId);
+
+    @Query("SELECT t FROM Track t JOIN t.trackArtists ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN'")
+    List<Track> findMainTracksByArtistId(@Param("artistId") Integer artistId);
 }

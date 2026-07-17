@@ -18,4 +18,8 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Integer> {
     @Modifying
     @Query("DELETE FROM Favorite f WHERE f.user.id = :userId")
     void deleteByUserId(@Param("userId") Integer userId);
+
+    @Modifying
+    @Query("DELETE FROM Favorite f WHERE f.track.id IN (SELECT ta.track.id FROM TrackArtist ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN')")
+    void deleteFavoritesByMainArtist(@Param("artistId") Integer artistId); //[cite: 53]
 }
