@@ -62,4 +62,5 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     ORDER BY day
     """, nativeQuery = true)
     List<Map<String, Object>> getDailyAnalyticsByArtist(@Param("artistId") Integer artistId);
+    void deleteByUserId(Integer userId);
 }

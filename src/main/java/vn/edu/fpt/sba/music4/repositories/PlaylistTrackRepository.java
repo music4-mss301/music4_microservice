@@ -1,6 +1,7 @@
 package vn.edu.fpt.sba.music4.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import vn.edu.fpt.sba.music4.entities.PlaylistTrack;
@@ -15,4 +16,8 @@ public interface PlaylistTrackRepository extends JpaRepository<PlaylistTrack, In
     List<PlaylistTrack> findByPlaylistId(@Param("playlistId") Integer playlistId);
 
     boolean existsByPlaylistIdAndTrackId(Integer playlistId, Integer trackId);
+    @Modifying
+    @Query("DELETE FROM PlaylistTrack pt WHERE pt.playlist.id IN (SELECT p.id FROM Playlist p WHERE p.user.id = :userId)")
+    void deletePlaylistTracksByUserId(@Param("userId") Integer userId);
+
 }

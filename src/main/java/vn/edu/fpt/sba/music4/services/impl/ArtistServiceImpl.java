@@ -18,6 +18,7 @@ import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.FollowRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
+import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.IArtistService;
 import vn.edu.fpt.sba.music4.util.AWSUtil;
 
@@ -30,9 +31,9 @@ import java.util.Map;
 public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     private final UserRepository userRepository;
     private final ArtistRepository artistRepository;
-    private final FollowRepository followRepository;
     private final AWSUtil aWSUtil;
-
+    private final TrackArtistRepository trackArtistRepository;
+    private final FollowRepository followRepository;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -190,4 +191,17 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
                 .toList();
     }
 
+
+    @Override
+    @Transactional
+    public void softDeleteArtist(Integer artistId) {
+    followRepository.deleteFollowers(artistId);
+    trackArtistRepository.softDeleteTrack(artistId);
+
+    Artist artist = artistRepository.findById(artistId)
+            .orElseThrow(() -> new RuntimeException("Artist not found with id: " + artistId));
+    if (artist!=null){
+        artistRepository.softDeleteArtistById(artistId);
+    }
+    }
 }

@@ -3,6 +3,7 @@ package vn.edu.fpt.sba.music4.controllers;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.UserRequest;
 import vn.edu.fpt.sba.music4.dtos.response.PageResponseDTO;
@@ -34,4 +35,11 @@ public class UserController {
     public int getTotalUsers() {
         return userService.getTotalUsers();
     }
+
+    @DeleteMapping("{id}")
+    public ResponseEntity<Void> deleteUserById(@PathVariable Integer id) {
+        userService.softDeleteUser(id);
+        return ResponseEntity.ok().build();
+    }
+
 }

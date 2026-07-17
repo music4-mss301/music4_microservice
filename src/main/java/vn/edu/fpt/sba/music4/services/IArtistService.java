@@ -25,6 +25,7 @@ public interface IArtistService {
     long countTotalArtists();
 
     List<Map<String, Object>> getTop3Artists();
+    public void softDeleteArtist(Integer artistId);
 
     List<UserResponseDTO> getFollowersByArtistId(Integer artistId);
 
