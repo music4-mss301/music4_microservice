@@ -257,6 +257,10 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
         followRepository.deleteFollowers(artistId);
 
         artist.setIsDeleted(true);
+        artist.setImg(null);
+        artist.setTrackTotal(0);
+        artist.setAlbumTotal(0);
+        aWSUtil.deleteFile(artist.getImg());
         artistRepository.save(artist);
     }
 }
