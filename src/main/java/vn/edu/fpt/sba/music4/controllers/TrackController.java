@@ -63,7 +63,7 @@ public class TrackController {
             @RequestParam("audioFile") MultipartFile audioFile,
             @RequestParam("coverImage") MultipartFile coverImage,
             @ModelAttribute @Valid TrackUploadDTO dto) {
-         // Đây là username/email của ca sĩ
+        // Đây là username/email của ca sĩ
         Authentication authentication =
                 SecurityContextHolder.getContext().getAuthentication();
 
@@ -241,5 +241,16 @@ public class TrackController {
 
         List<TrackResponseDTO> tracks = trackService.getTracksByArtistId(artistId);
         return ResponseEntity.ok(tracks);
+    }
+
+    @GetMapping("/random")
+    public ResponseEntity<Page<TrackResponseDTO>> getRandomTracks(
+            @RequestParam int seed,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        Pageable pageable = PageRequest.of(page, size);
+        // Gọi Service -> Repository thực thi query trên và trả về kết quả
+        return ResponseEntity.ok(trackService.getRandomTracks(seed, pageable));
     }
 }

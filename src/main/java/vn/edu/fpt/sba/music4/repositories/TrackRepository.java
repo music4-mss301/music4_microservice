@@ -28,8 +28,11 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             "WHERE (REPLACE(LOWER(t.name), '-', ' ') LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
             "OR (REPLACE(LOWER(a.name), '-', ' ') LIKE LOWER(CONCAT('%', :keyword, '%')))")
     Page<Track> searchByName(@Param("keyword") String keyword, Pageable pageable);
+
     List<Track> findByAlbumId(Integer albumId);
+
     int countByAlbumId(Integer albumId);
+
     List<Track> findTop5ByOrderByViewCountDesc();
 
     // Nếu 1 bài hát có thể có nhiều Artist collab (Many-to-Many)
@@ -39,7 +42,8 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
     @Query("SELECT DISTINCT t FROM Track t " +
             "LEFT JOIN FETCH t.album " + // Vẫn giữ Fetch Album để fix lỗi "no session" hôm nọ
             "JOIN t.trackArtists ta " +   // 👈 JOIN vào bảng trung gian trackArtists
-            "WHERE ta.artist.id = :artistId") // 👈 Lọc ID ca sĩ từ bảng trung gian
+            "WHERE ta.artist.id = :artistId")
+        // 👈 Lọc ID ca sĩ từ bảng trung gian
     List<Track> findTracksByArtistIdWithAlbum(@Param("artistId") Integer artistId);
 
     @Query("SELECT DISTINCT t FROM Track t " +
@@ -50,4 +54,9 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
 
     @Query("SELECT t FROM Track t JOIN t.trackArtists ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN'")
     List<Track> findMainTracksByArtistId(@Param("artistId") Integer artistId);
+
+    @Query(value = "SELECT * FROM TRACKS ORDER BY CHECKSUM(id, :seed)",
+            countQuery = "SELECT COUNT(*) FROM TRACKS",
+            nativeQuery = true)
+    Page<Track> findRandomTracksWithSeed(@Param("seed") int seed, Pageable pageable);
 }

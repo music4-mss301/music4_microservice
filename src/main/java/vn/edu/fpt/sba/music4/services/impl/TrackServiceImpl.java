@@ -785,4 +785,11 @@ public class TrackServiceImpl implements ITrackService {
             );
         }).toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TrackResponseDTO> getRandomTracks(int seed, Pageable pageable) {
+        Page<Track> pageTracks = trackRepository.findRandomTracksWithSeed(seed, pageable);
+        return pageTracks.map(this::toResponseDto);
+    }
 }
