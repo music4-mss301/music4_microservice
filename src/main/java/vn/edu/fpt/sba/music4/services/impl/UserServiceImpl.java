@@ -225,7 +225,7 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
 
         // 2. Gọi AWSUtil để xóa ảnh đại diện (avatar) trên S3 giải phóng dung lượng
         aWSUtil.deleteFile(user.getImg());
-
+        user.setImg(null);
         // 1. Dọn dẹp Tokens và User Providers (OAuth)
        // 2. Dọn bài hát yêu thích (Favorites)
         favoriteRepository.deleteByUserId(userId);
