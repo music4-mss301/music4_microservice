@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.RatingRequest;
+import vn.edu.fpt.sba.music4.dtos.response.RatingResponseDTO;
 import vn.edu.fpt.sba.music4.services.IRatingService;
 
 import java.util.Map;
@@ -35,5 +36,11 @@ public class RatingController {
                 "success", true,
                 "rating", score
         ));
+    }
+    @GetMapping("/stats")
+    public ResponseEntity<RatingResponseDTO> getRatingStats(
+            @RequestParam Integer userId,
+            @RequestParam Integer trackId) {
+        return ResponseEntity.ok(ratingService.getRatingStats(userId, trackId));
     }
 }

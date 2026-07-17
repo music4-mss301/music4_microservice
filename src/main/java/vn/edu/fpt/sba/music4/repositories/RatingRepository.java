@@ -1,6 +1,8 @@
 package vn.edu.fpt.sba.music4.repositories;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import vn.edu.fpt.sba.music4.entities.Rating;
 
@@ -13,4 +15,10 @@ public interface RatingRepository extends JpaRepository<Rating, Integer> {
     Optional<Rating> findByUserIdAndTrackId(Integer userId, Integer trackId);
 
     List<Rating> findByUserId(Integer userId);
+
+    @Query("SELECT AVG(r.ratingValue) FROM Rating r WHERE r.track.id = :trackId")
+    Double getAverageRatingByTrackId(@Param("trackId") Integer trackId);
+
+    @Query("SELECT COUNT(r) FROM Rating r WHERE r.track.id = :trackId")
+    long countByTrackId(@Param("trackId") Integer trackId);
 }
