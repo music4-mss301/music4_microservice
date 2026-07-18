@@ -62,25 +62,15 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
             nativeQuery = true)
     List<Map<String, Object>> getTop3Artists();
 
-    @Query(value = """
-    SELECT TOP 5
-        t.id,
-        t.name,
-        t.view_count,
-        COUNT(f.id) AS favorite_count
-    FROM TRACKS t
-    JOIN TRACK_ARTISTS ta
-        ON ta.track_id = t.id
-    LEFT JOIN FAVORITES f
-        ON f.track_id = t.id
-    WHERE ta.artist_id = :artistId
-    GROUP BY
-        t.id,
-        t.name,
-        t.view_count
-    ORDER BY
-        t.view_count DESC
-    """, nativeQuery = true)
+    @Query(value = "SELECT TOP 5 " +
+            "t.id AS id, " +
+            "t.name AS name, " +
+            "(SELECT COUNT(h.id) FROM HISTORY h WHERE h.track_id = t.id) AS view_count, " +
+            "(SELECT COUNT(f.id) FROM FAVORITES f WHERE f.track_id = t.id) AS favorite_count " +
+            "FROM TRACKS t " +
+            "INNER JOIN TRACK_ARTISTS ta ON t.id = ta.track_id " +
+            "WHERE ta.artist_id = :artistId " +
+            "ORDER BY view_count DESC, favorite_count DESC", nativeQuery = true)
     List<Map<String, Object>> getTopTracksByArtist(@Param("artistId") Integer artistId);
     @Modifying
     @Query("UPDATE Artist a SET a.isDeleted = true WHERE a.id = :id")
