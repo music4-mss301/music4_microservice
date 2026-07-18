@@ -555,6 +555,7 @@ public class TrackServiceImpl implements ITrackService {
 
         if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
             artistList = dbTrackArtists.stream()
+                    .filter(ta -> ta.getArtist() != null)
                     .map(ta -> new TrackArtistInfo(
                             ta.getArtist().getId(),
                             ta.getArtist().getName(),
@@ -783,5 +784,12 @@ public class TrackServiceImpl implements ITrackService {
                     artistList // 🔥 Nạp list nghệ sĩ vào đây
             );
         }).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TrackResponseDTO> getRandomTracks(int seed, Pageable pageable) {
+        Page<Track> pageTracks = trackRepository.findRandomTracksWithSeed(seed, pageable);
+        return pageTracks.map(this::toResponseDto);
     }
 }

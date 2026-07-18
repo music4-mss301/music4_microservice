@@ -55,8 +55,16 @@ public class ArtistController {
 
     @GetMapping("/top3")
     public ResponseEntity<List<Map<String, Object>>> getTop3Artists() {
+        // Giả định bạn đã tạo hàm getTop3Artists() trong IArtistService
         return ResponseEntity.ok(iArtistService.getTop3Artists());
     }
+    @DeleteMapping("{id}")
+    public ResponseEntity<Void> deleteArtistById(@PathVariable Integer id) {
+        iArtistService.softDeleteArtist(id);
+        return ResponseEntity.ok().build();
+    }
+
+
 
     @GetMapping("/{id}/followers")
     public ResponseEntity<?> getFollowersByArtistId(@PathVariable Integer id) {
