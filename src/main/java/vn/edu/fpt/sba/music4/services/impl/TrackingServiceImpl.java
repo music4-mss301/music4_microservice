@@ -82,23 +82,9 @@ public class TrackingServiceImpl implements ITrackingService{
                 // Đã có lịch sử -> Chỉ cần cập nhật thời gian
                 History history = latestHistory.get();
                 history.setPlaybackPosition(request.position());
-
                 historyRepository.save(history);
             } else {
-                // CHƯA CÓ LỊCH SỬ (Nghe lần đầu) -> TẠO MỚI
-                log.info("Chưa có lịch sử, đang tạo mới cho User {} và Track {} tại giây {}",
-                        request.userId(), request.trackId(), request.position());
-
-                History newHistory = new History();
-                Track trackRef = trackRepository.getReferenceById(request.trackId());
-                User userRef = userRepository.getReferenceById(request.userId());
-
-                newHistory.setTrack(trackRef);
-                newHistory.setUser(userRef);
-                newHistory.setListenedAt(LocalDateTime.now());
-                newHistory.setPlaybackPosition(request.position());
-
-                historyRepository.save(newHistory);
+                log.warn("Bỏ qua Sync do chưa tìm thấy Session gốc (Luồng Async có thể đang xử lý). Track: {}", request.trackId());
             }
         } catch (Exception e) {
             log.error("Time synchronization error for Track {}: {}", request.trackId(), e.getMessage());
