@@ -47,21 +47,22 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     @Query("DELETE FROM History h WHERE h.playbackPosition < 5 OR h.listenedAt < :cutoffDate")
     void cleanupGarbageHistory(@Param("cutoffDate") LocalDateTime cutoffDate);
 
-    @Query(value = """
-    SELECT
-        CAST(h.listened_at AS DATE) AS day,
-        COUNT(DISTINCT h.id) AS views
-    FROM HISTORY h
-    INNER JOIN TRACKS t
-        ON h.track_id = t.id
-    INNER JOIN TRACK_ARTISTS ta
-        ON ta.track_id = t.id
-    WHERE ta.artist_id = :artistId
-      AND h.listened_at >= DATEADD(DAY, -6, CAST(GETDATE() AS DATE))
-    GROUP BY CAST(h.listened_at AS DATE)
-    ORDER BY day
-    """, nativeQuery = true)
-    List<Map<String, Object>> getDailyAnalyticsByArtist(@Param("artistId") Integer artistId);
+    @Query(value = "SELECT CAST(h.listened_at AS DATE) AS day, COUNT_BIG(h.id) AS views " +
+            "FROM HISTORY h " +
+            "INNER JOIN TRACK_ARTISTS ta ON h.track_id = ta.track_id " +
+            "WHERE ta.artist_id = :artistId " +
+            "AND h.listened_at >= DATEADD(day, -30, GETDATE()) " +
+            "GROUP BY CAST(h.listened_at AS DATE)", nativeQuery = true)
+    List<Map<String, Object>> getDailyViewsByArtist(@Param("artistId") Integer artistId);
+
+    @Query(value = "SELECT CAST(f.liked_at AS DATE) AS day, COUNT_BIG(f.id) AS likes " +
+            "FROM FAVORITES f " +
+            "INNER JOIN TRACK_ARTISTS ta ON f.track_id = ta.track_id " +
+            "WHERE ta.artist_id = :artistId " +
+            "AND f.liked_at >= DATEADD(day, -30, GETDATE()) " +
+            "GROUP BY CAST(f.liked_at AS DATE)", nativeQuery = true)
+    List<Map<String, Object>> getDailyLikesByArtist(@Param("artistId") Integer artistId);
+
     void deleteByUserId(Integer userId);
     @Modifying
     @Query("DELETE FROM History h WHERE h.track.id IN (SELECT ta.track.id FROM TrackArtist ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN')")

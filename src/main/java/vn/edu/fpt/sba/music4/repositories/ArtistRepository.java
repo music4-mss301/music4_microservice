@@ -17,9 +17,9 @@ import java.util.Optional;
 @Repository
 public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
-    @Query(value = "SELECT COALESCE(SUM(CAST(t.view_count AS BIGINT)), 0) " +
-            "FROM TRACKS t " +
-            "INNER JOIN TRACK_ARTISTS ta ON t.id = ta.track_id " +
+    @Query(value = "SELECT COALESCE(COUNT_BIG(h.id), 0) " +
+            "FROM HISTORY h " +
+            "INNER JOIN TRACK_ARTISTS ta ON h.track_id = ta.track_id " +
             "WHERE ta.artist_id = :artistId", nativeQuery = true)
     Long getTotalViewsByArtist(@Param("artistId") Integer artistId);
 
