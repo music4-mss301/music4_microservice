@@ -8,12 +8,14 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.request.SyncTimeRequest;
+import vn.edu.fpt.sba.music4.dtos.request.TrackPlayRequest;
 import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.History;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.entities.TrackArtist;
 import vn.edu.fpt.sba.music4.entities.User;
+import vn.edu.fpt.sba.music4.exceptions.ResourceNotFoundException;
 import vn.edu.fpt.sba.music4.repositories.HistoryRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackRepository;
@@ -140,6 +142,26 @@ public class TrackingServiceImpl implements ITrackingService{
         } catch (Exception e) {
             log.error("[CLEANUP] Lỗi khi dọn dẹp lịch sử rác: {}", e.getMessage());
         }
+    }
+
+    @Override
+    public void saveHistory(TrackPlayRequest request) {
+        // Tìm User
+        User user = userRepository.findById(request.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy User với ID: " + request.userId()));
+
+        // Tìm Track
+        Track track = trackRepository.findById(request.trackId())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Track với ID: " + request.trackId()));
+
+        // Tạo bản ghi lịch sử mới
+        History history = new History();
+        history.setUser(user);
+        history.setTrack(track);
+        history.setListenedAt(LocalDateTime.now());
+
+        // Lưu vào Database
+        historyRepository.save(history);
     }
 
 }
