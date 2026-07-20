@@ -16,6 +16,7 @@ import vn.edu.fpt.sba.music4.entities.User;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.IRecommendationService;
 
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -38,24 +39,21 @@ public class RecommendationController {
         // 1. Lấy thông tin user hiện tại từ Security Context (đã được JwtFilter xác thực)
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        // Nếu không có token hoặc đang là Guest vô danh -> ko cho
-        if (auth == null || !auth.isAuthenticated() || auth.getName().equals("anonymousUser")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập để sử dụng tính năng này!");
-        }
+        Integer userId = null;
 
-        // 2. Lấy username từ token
-        String username = auth.getName();
-
-        // 3. Truy vấn Database để lấy userId
-        User user = userRepository.findByUserName(username)
-                .orElse(null);
-
-        if (user == null) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Tài khoản không tồn tại!");
+        // Nếu đã đăng nhập thì lấy ID
+        if (auth != null &&  auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+            User user = userRepository.findByUserName(auth.getName()).orElse(null);
+            if (user != null && "ARTIST".equals(user.getRole())) {
+                return ResponseEntity.ok(Collections.emptyList());
+            }
+            if (user != null) {
+                userId = user.getId();
+            }
         }
 
         // 4. Truyền đúng userId cho AI xử lý
-        List<TrackSuggestResponse> suggestions = recommendationService.getRecommendations(user.getId());
+        List<TrackSuggestResponse> suggestions = recommendationService.getRecommendations(userId);
         return ResponseEntity.ok(suggestions);
     }
 
@@ -66,6 +64,17 @@ public class RecommendationController {
             @ApiResponse(responseCode = "500", description = "Lỗi hệ thống trong quá trình khởi tạo đồng bộ")
     })
     public ResponseEntity<String> syncDataToElasticsearch() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated() || auth.getName().equals("anonymousUser")) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập để sử dụng tính năng này!");
+        }
+
+        User user = userRepository.findByUserName(auth.getName()).orElse(null);
+        if (user == null || !"ADMIN".equalsIgnoreCase(user.getRole())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Chỉ ADMIN mới được phép đồng bộ dữ liệu!");
+        }
+
         recommendationService.syncTracksToElasticsearch();
         return ResponseEntity.accepted().body("Tiến trình đồng bộ Vector đang được chạy ngầm. Vui lòng kiểm tra màn hình console (log) của hệ thống để xem tiến độ!");
     }

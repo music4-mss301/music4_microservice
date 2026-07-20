@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.Where;
+
 import java.time.LocalDate;
 import java.util.List;
 
@@ -13,6 +16,8 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@SQLDelete(sql = "UPDATE TRACKS SET is_deleted = 1 WHERE id = ?")
+@Where(clause = "is_deleted = 0")
 public class Track {
 
     @Id
@@ -52,6 +57,9 @@ public class Track {
     @OneToMany(mappedBy = "track", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @JsonIgnore
     private List<TrackCategory> trackCategories;
+
+    @Column(name = "is_deleted")
+    private Boolean isDeleted = false;
 
     @PrePersist
     protected void onCreate() {

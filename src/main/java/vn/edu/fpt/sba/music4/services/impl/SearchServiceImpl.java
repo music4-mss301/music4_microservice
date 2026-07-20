@@ -22,8 +22,10 @@ public class SearchServiceImpl implements ISearchService {
     private final PlaylistRepository playlistRepository;
     private final CategoryRepository categoryRepository;
     private final TrackArtistRepository trackArtistRepository;
-
-    public SearchServiceImpl(TrackRepository trackRepository, AlbumRepository albumRepository, ArtistRepository artistRepository, PlaylistRepository playlistRepository, CategoryRepository categoryRepository, TrackArtistRepository trackArtistRepository) {
+    public SearchServiceImpl(TrackRepository trackRepository, AlbumRepository albumRepository, ArtistRepository artistRepository,
+                             PlaylistRepository playlistRepository,
+                             CategoryRepository categoryRepository,
+                             TrackArtistRepository trackArtistRepository) {
         this.trackRepository = trackRepository;
         this.albumRepository = albumRepository;
         this.artistRepository = artistRepository;
@@ -33,10 +35,35 @@ public class SearchServiceImpl implements ISearchService {
     }
     private String cleanKeyword(String keyword) {
         if (keyword == null) return "";
-        String normalized = Normalizer.normalize(keyword, Normalizer.Form.NFD);
-        String noAccent = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
-                .matcher(normalized).replaceAll("");
-        return noAccent.toLowerCase().replace("-", " ");
+
+        // Loại bỏ khoảng trắng thừa ở 2 đầu
+        String trimmed = keyword.trim();
+
+        // Chỉ chuyển về chữ thường và thay thế dấu '-' thành khoảng trắng.
+        // Bỏ logic Normalizer để giữ nguyên dấu tiếng Việt (như ề, à) cho DB xử lý.
+        return trimmed.toLowerCase().replace("-", " ");
+    }
+    private TrackResponseDTO mapToTrackDTO(Track track) {
+        String albumName = track.getAlbum() != null ? track.getAlbum().getName() : "Single";
+
+        List<TrackArtistInfo> artists = List.of();
+
+        List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackIdWithArtist(track.getId());
+
+        if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
+            artists = dbTrackArtists.stream()
+                    .map(ta -> new TrackArtistInfo(
+                            ta.getArtist().getId(),
+                            ta.getArtist().getName(),
+                            ta.getRole()
+                    )).toList();
+        }
+
+        return new TrackResponseDTO(
+                track.getId(), track.getName(), albumName, track.getImg(),
+                track.getDuration(), track.getFilePath(), track.getPreviewPath(),
+                track.getViewCount(), track.getUploadDate(),null, artists // Hết bị null rồi nhé!
+        );
     }
     @Override
     @Transactional(readOnly = true)
@@ -54,19 +81,7 @@ public class SearchServiceImpl implements ISearchService {
             Page<Playlist> playlistPage = playlistRepository.searchByName(cleanKey, pageable);
             Page<Category> categoryPage = categoryRepository.searchByName(cleanKey, pageable);
 
-            Page<TrackResponseDTO> trackDTOPage = trackPage.map(track -> {
-                List<TrackArtistInfo> artists = trackArtistRepository.findByTrackId(track.getId())
-                        .stream()
-                        .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
-                        .toList();
-
-                return new TrackResponseDTO(
-                        track.getId(), track.getName(),
-                        track.getAlbum() != null ? track.getAlbum().getName() : "Single",
-                        track.getImg(), track.getDuration(), track.getFilePath(), track.getPreviewPath(),
-                        track.getViewCount(), track.getUploadDate(), null, artists
-                );
-            });
+            Page<TrackResponseDTO> trackDTOPage = trackPage.map(this::mapToTrackDTO);
 
             Page<AlbumResponseDTO> albumDTOPage = albumPage.map(album -> new AlbumResponseDTO(
                     album.getId(), album.getName(), album.getImg(), album.getUploadDate(), album.getTrackTotal(),
@@ -78,9 +93,12 @@ public class SearchServiceImpl implements ISearchService {
             ));
 
             Page<PlaylistResponseDTO> playlistDTOPage = playlistPage.map(playlist -> new PlaylistResponseDTO(
-                    playlist.getId(), playlist.getName(),
+                    playlist.getId(),
+                    playlist.getName(),
                     playlist.getUser() != null ? playlist.getUser().getId() : null,
-                    playlist.getName()
+                    playlist.getUser() != null ? playlist.getUser().getUsername() : null, // 🟢 Sửa lại lấy đúng username
+                    playlist.getDescription(),
+                    playlist.getImg()
             ));
 
             Page<CategoryResponseDTO> categoryDTOPage = categoryPage.map(category -> new CategoryResponseDTO(
@@ -92,21 +110,8 @@ public class SearchServiceImpl implements ISearchService {
         // 2. TÌM KIẾM CHI TIẾT THEO TYPE
         return switch (type.toLowerCase()) {
             case "track" -> {
-                Page<TrackResponseDTO> trackDTOPage = trackRepository.searchByName(cleanKey, pageable).map(track -> {
-                    List<TrackArtistInfo> artists = trackArtistRepository.findByTrackId(track.getId())
-                            .stream()
-                            .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
-                            .toList();
-
-                    return new TrackResponseDTO(
-                            track.getId(), track.getName(),
-                            track.getAlbum() != null ? track.getAlbum().getName() : "Single",
-                            track.getImg(), track.getDuration(), track.getFilePath(), track.getPreviewPath(),
-                            track.getViewCount(), track.getUploadDate(), null, artists
-                    );
-                });
-                yield new SearchResultResponseDTO(trackDTOPage,null,null,null,null);
-            }
+                Page<TrackResponseDTO> trackDTOPage = trackRepository.searchByName(cleanKey, pageable).map(this::mapToTrackDTO);
+                yield new SearchResultResponseDTO(trackDTOPage,null,null,null,null); }
 
             case "artist" -> {
                 Page<ArtistResponseDTO> artistDTOPage = artistRepository.searchByName(cleanKey, pageable).map(artist -> new ArtistResponseDTO(
@@ -124,9 +129,12 @@ public class SearchServiceImpl implements ISearchService {
             }
             case "playlist" -> {
                 Page<PlaylistResponseDTO> playlistDTOPage = playlistRepository.searchByName(cleanKey, pageable).map(playlist -> new PlaylistResponseDTO(
-                        playlist.getId(), playlist.getName(),
+                        playlist.getId(),
+                        playlist.getName(),
                         playlist.getUser() != null ? playlist.getUser().getId() : null,
-                        playlist.getName()
+                        playlist.getUser() != null ? playlist.getUser().getUsername() : null,
+                        playlist.getDescription(),
+                        playlist.getImg()
                 ));
                  yield new SearchResultResponseDTO(null, null, null, playlistDTOPage, null);
             }

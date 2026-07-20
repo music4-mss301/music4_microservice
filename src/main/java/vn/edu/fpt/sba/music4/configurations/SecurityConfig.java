@@ -48,6 +48,9 @@ public class SecurityConfig {
                         auth -> auth
                                 .requestMatchers("/api/**", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**", "/error").permitAll()
                                 .requestMatchers("/auth/**", "/oauth2/**").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/recommendations/sync").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/admin/system/cleanup-history").permitAll()
+                                .requestMatchers("/api/tracks/stream/preview/**").permitAll()
                                 .anyRequest().authenticated())
                 // 1. Cấu hình đăng nhập OAuth2
                 .oauth2Login(oauth2 -> oauth2
