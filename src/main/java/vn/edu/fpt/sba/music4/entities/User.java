@@ -51,9 +51,6 @@ public class User implements UserDetails {
 //    @JsonIgnore
     private List<Playlist> playlists;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<PasswordResetToken> passwordResetTokens;
-
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<UserProvider> userProviders;
 
