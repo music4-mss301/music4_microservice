@@ -77,5 +77,5 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
     void softDeleteArtistById(@Param("id") Integer id);
 
 
-
+    Optional<Artist> findByEmail(String email);
 }
