@@ -35,6 +35,7 @@ public class TrackingServiceImpl implements ITrackingService{
     private final HistoryRepository historyRepository;
     private final UserRepository userRepository;
     private final TrackArtistRepository trackArtistRepository;
+
     @Override
     @Async("trackingExecutor")
     @Transactional
@@ -44,24 +45,38 @@ public class TrackingServiceImpl implements ITrackingService{
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát"));
 
             boolean isCreator = false;
+            boolean isAdmin = false;
+            User currentUser = null;
+
+            // Lấy User để kiểm tra Role Admin và lưu History
+            if (userId != null) {
+                currentUser = userRepository.findById(userId).orElse(null);
+                if (currentUser != null && "ADMIN".equalsIgnoreCase(currentUser.getRole())) {
+                    isAdmin = true;
+                }
+            }
+
+            // Kiểm tra quyền Tác giả
             if (currentUsername != null && !currentUsername.equals("anonymousUser")) {
                 isCreator = track.getTrackArtists().stream()
                         .anyMatch(ta -> ta.getArtist().getUsername().equals(currentUsername));
             }
 
-            if (!isCreator) {
+            // Cộng view nếu ko phải Admin hoặc Artist
+            if (!isCreator && !isAdmin) {
                 trackRepository.incrementViewCount(trackId);
-                log.info("Đã cộng 1 view cho bài hát {}", trackId);
+                log.info("[SUCCESS] Đã cộng 1 view cho bài hát {}", trackId);
             } else {
-                log.info("BỎ QUA CỘNG VIEW: User {} chính là tác giả của Track {}", currentUsername, trackId);
+                log.info("[ANTI-CHEAT] BỎ QUA CỘNG VIEW: User {} (Admin: {}, Tác giả: {})",
+                        currentUsername, isAdmin, isCreator);
             }
 
+            // Lưu Lịch sử
             History history = new History();
             history.setTrack(track);
 
-            if (userId != null) {
-                User userRef = userRepository.getReferenceById(userId);
-                history.setUser(userRef);
+            if (currentUser != null) {
+                history.setUser(currentUser);
             }
 
             history.setListenedAt(LocalDateTime.now());
@@ -105,7 +120,7 @@ public class TrackingServiceImpl implements ITrackingService{
             Track track = history.getTrack();
             List<TrackArtistInfo> artists = List.of();
 
-// Gọi thẳng Repo bằng ID của bài hát
+        // Gọi Repo bằng ID của bài hát
             List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackIdWithArtist(track.getId());
 
             if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
@@ -136,9 +151,9 @@ public class TrackingServiceImpl implements ITrackingService{
     @Transactional
     public void cleanupHistory() {
         try {
-            LocalDateTime sixMonthsAgo = LocalDateTime.now().minusMonths(1);
-            historyRepository.cleanupGarbageHistory(sixMonthsAgo);
-            log.info("[CLEANUP] Đã dọn dẹp thành công các lịch sử rác (nghe < 5s hoặc cũ hơn 1 tháng).");
+            LocalDateTime oneMonthsAgo = LocalDateTime.now().minusMonths(1);
+            historyRepository.cleanupGarbageHistory(oneMonthsAgo);
+            log.info("[CLEANUP] Đã dọn dẹp thành công các lịch sử rác (nghe < 10s hoặc cũ hơn 1 tháng).");
         } catch (Exception e) {
             log.error("[CLEANUP] Lỗi khi dọn dẹp lịch sử rác: {}", e.getMessage());
         }
