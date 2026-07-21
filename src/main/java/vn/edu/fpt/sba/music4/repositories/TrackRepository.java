@@ -43,7 +43,6 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             "LEFT JOIN FETCH t.album " + // Vẫn giữ Fetch Album để fix lỗi "no session" hôm nọ
             "JOIN t.trackArtists ta " +   // 👈 JOIN vào bảng trung gian trackArtists
             "WHERE ta.artist.id = :artistId")
-        // 👈 Lọc ID ca sĩ từ bảng trung gian
     List<Track> findTracksByArtistIdWithAlbum(@Param("artistId") Integer artistId);
 
     @Query("SELECT DISTINCT t FROM Track t " +
@@ -59,4 +58,13 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             countQuery = "SELECT COUNT(*) FROM TRACKS",
             nativeQuery = true)
     Page<Track> findRandomTracksWithSeed(@Param("seed") int seed, Pageable pageable);
+
+    @Query(value = "SELECT t.* FROM TRACKS t " +
+            "INNER JOIN TRACK_CATEGORIES tc ON t.id = tc.track_id " +
+            "WHERE tc.category_id = :categoryId AND t.is_deleted = 0",
+            countQuery = "SELECT COUNT(t.id) FROM TRACKS t " +
+                    "INNER JOIN TRACK_CATEGORIES tc ON t.id = tc.track_id " +
+                    "WHERE tc.category_id = :categoryId AND t.is_deleted = 0",
+            nativeQuery = true)
+    Page<Track> findTracksByCategoryId(@Param("categoryId") Integer categoryId, Pageable pageable);
 }
