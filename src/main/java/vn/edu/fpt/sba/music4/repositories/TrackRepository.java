@@ -59,4 +59,6 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             countQuery = "SELECT COUNT(*) FROM TRACKS",
             nativeQuery = true)
     Page<Track> findRandomTracksWithSeed(@Param("seed") int seed, Pageable pageable);
+
+    boolean existsByImgAndIdNot(String img, Integer id);
 }
