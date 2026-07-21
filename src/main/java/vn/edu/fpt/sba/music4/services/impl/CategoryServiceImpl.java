@@ -1,5 +1,7 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryDetailResponseDTO;
@@ -13,6 +15,7 @@ import vn.edu.fpt.sba.music4.exceptions.BusinessException;
 import vn.edu.fpt.sba.music4.repositories.CategoryRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.TrackCategoryRepository;
+import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
 
 import java.util.List;
@@ -24,12 +27,15 @@ public class CategoryServiceImpl implements ICategoryService {
     private CategoryRepository categoryRepository;
     private TrackCategoryRepository trackCategoryRepository;
     private TrackArtistRepository trackArtistRepository;
+    private TrackRepository trackRepository;
     public CategoryServiceImpl(CategoryRepository categoryRepository,
                                TrackCategoryRepository trackCategoryRepository,
-                               TrackArtistRepository trackArtistRepository) {
+                               TrackArtistRepository trackArtistRepository,
+                               TrackRepository trackRepository) {
         this.categoryRepository = categoryRepository;
         this.trackCategoryRepository = trackCategoryRepository;
-        this.categoryRepository = categoryRepository;
+        this.trackRepository = trackRepository;
+        this.trackArtistRepository = trackArtistRepository;
     }
 
     public CategoryResponseDTO toResponseDto(Category category) {
@@ -137,5 +143,25 @@ public class CategoryServiceImpl implements ICategoryService {
     @Override
     public List<Map<String, Object>> getCategoryStats() {
         return categoryRepository.getCategoryStats();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TrackResponseDTO> getTracksByCategory(Integer categoryId, Pageable pageable) {
+        Page<Track> tracksPage = trackRepository.findTracksByCategoryId(categoryId, pageable);
+
+        // Tận dụng mapper Track sang DTO (Lưu ý: Logic map Track sang DTO bạn có thể copy từ đoạn map trong getCategoryById hoặc viết một hàm helper chung)
+        return tracksPage.map(track -> {
+            List<TrackArtistInfo> artistList = trackArtistRepository.findByTrackIdWithArtist(track.getId())
+                    .stream()
+                    .map(ta -> new TrackArtistInfo(ta.getArtist().getId(), ta.getArtist().getName(), ta.getRole()))
+                    .toList();
+
+            return new TrackResponseDTO(
+                    track.getId(), track.getName(), track.getAlbum() != null ? track.getAlbum().getName() : "Single",
+                    track.getImg(), track.getDuration(), track.getFilePath(), track.getPreviewPath(),
+                    track.getViewCount(), track.getUploadDate(), null, artistList
+            );
+        });
     }
 }

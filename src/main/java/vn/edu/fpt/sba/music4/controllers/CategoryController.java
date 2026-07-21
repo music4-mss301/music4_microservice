@@ -4,11 +4,15 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryDetailResponseDTO;
 import vn.edu.fpt.sba.music4.dtos.response.CategoryResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Category;
 import vn.edu.fpt.sba.music4.exceptions.BusinessException;
 import vn.edu.fpt.sba.music4.services.ICategoryService;
@@ -78,5 +82,13 @@ public class CategoryController {
     public ResponseEntity<List<Map<String, Object>>> getCategoryStats() {
         // Giả định bạn đã tạo hàm getCategoryStats() trong ICategoryService
         return ResponseEntity.ok(categoryService.getCategoryStats());
+    }
+    @GetMapping("/{id}/tracks")
+    public ResponseEntity<Page<TrackResponseDTO>> getTracksByCategory(
+            @PathVariable Integer id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(categoryService.getTracksByCategory(id, pageable));
     }
 }

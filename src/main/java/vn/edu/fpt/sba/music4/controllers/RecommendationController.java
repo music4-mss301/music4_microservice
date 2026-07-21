@@ -36,15 +36,15 @@ public class RecommendationController {
             @ApiResponse(responseCode = "400", description = "Lỗi kiểu dữ liệu tham số userId truyền vào")
     })
     public ResponseEntity<?> getRecommendations() {
-        // 1. Lấy thông tin user hiện tại từ Security Context (đã được JwtFilter xác thực)
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        Integer userId = null;
+        Integer userId = null; // Mặc định là null cho Guest
 
-        // Nếu đã đăng nhập thì lấy ID
-        if (auth != null &&  auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+        // Nếu ĐÃ đăng nhập, tiến hành lấy ID
+        if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
             User user = userRepository.findByUserName(auth.getName()).orElse(null);
-            if (user != null && "ARTIST".equals(user.getRole())) {
+            // Artist không cần gợi ý nghe nhạc
+            if (user != null && "ARTIST".equalsIgnoreCase(user.getRole())) {
                 return ResponseEntity.ok(Collections.emptyList());
             }
             if (user != null) {
@@ -52,7 +52,8 @@ public class RecommendationController {
             }
         }
 
-        // 4. Truyền đúng userId cho AI xử lý
+        // Truyền userId xuống Service.
+        // Nếu userId = null, Service sẽ tự động chạy hàm Fallback (Top Trending)
         List<TrackSuggestResponse> suggestions = recommendationService.getRecommendations(userId);
         return ResponseEntity.ok(suggestions);
     }
