@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.AddTrackRequest;
 import vn.edu.fpt.sba.music4.dtos.request.PlaylistRequest;
 import vn.edu.fpt.sba.music4.dtos.response.PlaylistResponseDTO;
+import vn.edu.fpt.sba.music4.dtos.response.TrackArtistInfo;
 import vn.edu.fpt.sba.music4.dtos.response.TrackResponseDTO;
 import vn.edu.fpt.sba.music4.entities.*;
 import vn.edu.fpt.sba.music4.repositories.*;
@@ -50,6 +51,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<TrackResponseDTO> getTracksByPlaylistId(Integer playlistId) {
         if (!playlistRepository.existsById(playlistId)) {
             throw new RuntimeException("Không tìm thấy Playlist yêu cầu.");
@@ -60,6 +62,17 @@ public class PlaylistServiceImpl implements IPlaylistService {
         return playlistTracks.stream()
                 .map(pt -> {
                     Track t = pt.getTrack();
+
+                    // Map từ trackArtists sang danh sách TrackArtistInfo khớp với TrackResponseDTO
+                    List<TrackArtistInfo> artistInfoList = t.getTrackArtists() != null
+                            ? t.getTrackArtists().stream()
+                            .map(ta -> new TrackArtistInfo(
+                                    ta.getArtist().getId(),
+                                    ta.getArtist().getName(),
+                                    ta.getRole()
+                            ))
+                            .toList()
+                            : Collections.emptyList();
 
                     return new TrackResponseDTO(
                             t.getId(),
@@ -72,7 +85,7 @@ public class PlaylistServiceImpl implements IPlaylistService {
                             t.getViewCount(),
                             t.getUploadDate(),
                             0,
-                            Collections.emptyList()
+                            artistInfoList
                     );
                 })
                 .toList();
