@@ -69,6 +69,16 @@ public class TrackingController {
         return ResponseEntity.ok(trackingService.getListeningHistory(userId, pageable));
     }
 
+    @PostMapping("/history")
+    public ResponseEntity<?> saveHistory(@RequestBody @Valid TrackPlayRequest request) {
+        try {
+            trackingService.saveHistory(request);
+            return ResponseEntity.ok("Lưu lịch sử nghe nhạc thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi: " + e.getMessage());
+        }
+    }
+
     @PostMapping("/cleanup-history")
     public ResponseEntity<String> cleanupHistory() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
