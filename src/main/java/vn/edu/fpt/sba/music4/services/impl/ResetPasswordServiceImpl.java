@@ -1,12 +1,15 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.entities.PasswordResetToken;
 import vn.edu.fpt.sba.music4.entities.User;
+import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.PasswordResetTokenRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.IPasswordResetTokenService;
@@ -14,6 +17,7 @@ import vn.edu.fpt.sba.music4.services.IPasswordResetTokenService;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -25,45 +29,59 @@ public class ResetPasswordServiceImpl implements IPasswordResetTokenService {
     private final EmailService emailService;
 
     private static final int TOKEN_EXPIRY_MINUTES = 15;
+    private final ArtistRepository artistRepository;
 
 
     @Override
     @Transactional
     public void initiatePasswordReset(String email) {
-        userRepo.findByEmail(email).ifPresent(user -> {
-            passwordResetTokenRepo.deleteByUserAndUsedFalse(user);
+        Optional<User> userOpt = userRepo.findByEmail(email);
 
-            String token = generateSecureToken();
-            PasswordResetToken resetToken = new PasswordResetToken();
-            resetToken.setToken(token);
-            resetToken.setUser(user);
-            resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(TOKEN_EXPIRY_MINUTES));
-            passwordResetTokenRepo.save(resetToken);
+        if (userOpt.isPresent()) {
+            createAndSendToken(email, PasswordResetToken.AccountType.USER);
+            return;
+        }
 
-            System.out.println("Sent email to: " + email);
-            emailService.sendResetEmail(email, token);
-        });
-        // Luôn trả về response giống nhau dù email có tồn tại hay không
+        Optional<Artist> artistOpt = artistRepository.findByEmail(email);
+        if (artistOpt.isPresent()) {
+            createAndSendToken(email, PasswordResetToken.AccountType.ARTIST);
+            return;
+        }
+
+        System.out.println("Initiated reset flow for: " + email);
     }
 
     @Override
+    @Transactional
     public void resetPassword(String token, String newPassword) {
         PasswordResetToken resetToken = passwordResetTokenRepo.findByToken(token)
-                .orElseThrow(() -> new RuntimeException("Token not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Đường dẫn khôi phục không tồn tại hoặc không hợp lệ."));
 
         if (!resetToken.isValid()) {
-            throw new RuntimeException("Token is invalid or expired");
+            throw new IllegalStateException("Đường dẫn khôi phục đã hết hạn hoặc đã được sử dụng.");
         }
 
-        User user =  resetToken.getUser();
-        user.setPassword(passwordEncoder.encode(newPassword));
-        userRepo.save(user);
+        String email = resetToken.getEmail();
+        String encodedPassword = passwordEncoder.encode(newPassword);
+
+        if (resetToken.getAccountType() == PasswordResetToken.AccountType.ARTIST) {
+            Artist artist = artistRepository.findByEmail(email)
+                    .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy tài khoản Nghệ sĩ liên kết với email này."));
+            artist.setPassword(encodedPassword);
+            artistRepository.save(artist);
+        } else {
+            User user = userRepo.findByEmail(email)
+                    .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy tài khoản Người dùng liên kết với email này."));
+            user.setPassword(encodedPassword);
+            userRepo.save(user);
+        }
 
         resetToken.setUsed(true);
         passwordResetTokenRepo.save(resetToken);
 
-        invalidateAllUserSessions(user);
+        passwordResetTokenRepo.deleteByEmailAndUsedFalse(email);
     }
+
 
     @Override
     public String generateSecureToken() {
@@ -75,5 +93,21 @@ public class ResetPasswordServiceImpl implements IPasswordResetTokenService {
     @Override
     public void invalidateAllUserSessions(User user) {
 
+    }
+
+    private void createAndSendToken(String email, PasswordResetToken.AccountType accountType) {
+        passwordResetTokenRepo.deleteByEmailAndUsedFalse(email);
+
+        String token = generateSecureToken();
+        PasswordResetToken resetToken = new PasswordResetToken();
+        resetToken.setToken(token);
+        resetToken.setEmail(email);
+        resetToken.setAccountType(accountType);
+        resetToken.setExpiryDate(LocalDateTime.now().plusMinutes(TOKEN_EXPIRY_MINUTES));
+
+        passwordResetTokenRepo.save(resetToken);
+
+        System.out.println("Sent email to " + accountType + ": " + email);
+        emailService.sendResetEmail(email, token);
     }
 }
