@@ -65,4 +65,6 @@ class RatingServiceImpl implements IRatingService {
 
         return new RatingResponseDTO(avg, myRating, count);
     }
+
+
 }

@@ -26,6 +26,7 @@ public class RatingController {
                 "message", "Đánh giá bài hát thành công!"
         ));
     }
+
     @GetMapping("/track/{trackId}/user/{userId}")
     public ResponseEntity<?> getUserRating(
             @PathVariable Integer trackId,
@@ -37,10 +38,20 @@ public class RatingController {
                 "rating", score
         ));
     }
+
     @GetMapping("/stats")
     public ResponseEntity<RatingResponseDTO> getRatingStats(
             @RequestParam Integer userId,
             @RequestParam Integer trackId) {
         return ResponseEntity.ok(ratingService.getRatingStats(userId, trackId));
+    }
+
+    @GetMapping("/average/{trackId}")
+    public ResponseEntity<?> getAverageRating(@PathVariable Integer trackId) {
+        double averageScore = ratingService.getAverageRating(trackId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "average", averageScore
+        ));
     }
 }
