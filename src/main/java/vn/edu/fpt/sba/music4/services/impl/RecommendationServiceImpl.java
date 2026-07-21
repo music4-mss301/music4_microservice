@@ -65,7 +65,7 @@ public class RecommendationServiceImpl implements IRecommendationService {
             return getTrendingFallback();
         }
 
-        // --- BƯỚC 1: LẤY LỊCH SỬ NGHE NHẠC CỦA USER VÀ TẠO THÀNH CHUỖI 'TEXT' ---
+        // BƯỚC 1: LẤY LỊCH SỬ NGHE NHẠC CỦA USER VÀ TẠO THÀNH CHUỖI 'TEXT'
         Set<Integer> likedTrackIds = new HashSet<>();
         historyRepository.findByUserId(userId).forEach(h -> likedTrackIds.add(h.getTrack().getId()));
         favoriteRepository.findByUserId(userId).forEach(f -> likedTrackIds.add(f.getTrack().getId()));
@@ -90,20 +90,20 @@ public class RecommendationServiceImpl implements IRecommendationService {
         String userTasteText = tasteProfileBuilder.toString().trim();
         List<Double> embedding = null;
 
-        // --- BƯỚC 2: GỌI AI PYTHON ĐỂ LẤY VECTOR (NATIVE HTTP/1.1) ---
+        // BƯỚC 2: GỌI AI PYTHON ĐỂ LẤY VECTOR
         try {
             log.info("Đang gọi AI Service để lấy Vector cho User ID: {}", userId);
 
-            // 1. Dọn dẹp text an toàn tuyệt đối
+            // Dọn dẹp text an toàn
             String safeText = userTasteText.replace("\"", "").replace("\n", " ").replace("\r", " ").trim();
             String rawJson = "{\"text\": \"" + safeText + "\"}";
 
-            // 2. KHỞI TẠO CLIENT VÀ ÉP DÙNG HTTP/1.1 (Chìa khóa ở đây!)
+            // KHỞI TẠO CLIENT VÀ ÉP DÙNG HTTP/1.1
             HttpClient client = HttpClient.newBuilder()
-                    .version(HttpClient.Version.HTTP_1_1) // <--- Bắt buộc Uvicorn phải hiểu
+                    .version(HttpClient.Version.HTTP_1_1)
                     .build();
 
-            // 3. Đóng gói Request tĩnh
+            // Đóng gói Request tĩnh
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(pythonEmbedUrl.trim()))
                     .header("Content-Type", "application/json")
@@ -111,17 +111,17 @@ public class RecommendationServiceImpl implements IRecommendationService {
                     .POST(HttpRequest.BodyPublishers.ofString(rawJson, StandardCharsets.UTF_8))
                     .build();
 
-            // 4. Gửi đi và nhận kết quả
+            // Gửi đi và nhận kết quả
             HttpResponse<String> pythonResponse = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            // 5. Kiểm tra mã trạng thái
+            // Kiểm tra mã trạng thái
             if (pythonResponse.statusCode() == 200) {
                 ObjectMapper mapper = new ObjectMapper();
                 Map<String, Object> responseMap = mapper.readValue(pythonResponse.body(), Map.class);
 
                 if (responseMap.containsKey("vector")) {
                     embedding = (List<Double>) responseMap.get("vector");
-                    log.info("[DEBUG] 🎉 Đã nhận thành công Vector từ Python AI!");
+                    log.info("[DEBUG] Đã nhận thành công Vector từ Python AI!");
                 }
             } else {
                 log.error("AI Service từ chối với status {}: {}", pythonResponse.statusCode(), pythonResponse.body());
@@ -132,19 +132,19 @@ public class RecommendationServiceImpl implements IRecommendationService {
             embedding = null;
         }
 
-        // --- BƯỚC 3: XỬ LÝ FALLBACK ---
+        // BƯỚC 3: XỬ LÝ FALLBACK
         if (embedding == null || embedding.isEmpty()) {
             // Nếu AI sập -> Trả về nhạc Trending
             return getTrendingFallback();
         }
 
-        // --- BƯỚC 4: ĐEM VECTOR SANG ELASTICSEARCH K-NN SEARCH (CÓ TRY-CATCH RIÊNG BẢO VỆ) ---
+        // BƯỚC 4: ĐEM VECTOR SANG ELASTICSEARCH K-NN SEARCH
         try {
             Map<String, Object> knnQuery = new HashMap<>();
             Map<String, Object> knnParams = new HashMap<>();
             knnParams.put("field", "vector_data");
             knnParams.put("query_vector", embedding);
-            knnParams.put("k", 15);
+            knnParams.put("k", 30);
             knnParams.put("num_candidates", 100);
             knnQuery.put("knn", knnParams);
             knnQuery.put("_source", Collections.singletonList("track_id"));
