@@ -60,5 +60,14 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
             nativeQuery = true)
     Page<Track> findRandomTracksWithSeed(@Param("seed") int seed, Pageable pageable);
 
+    @Query(value = "SELECT t.* FROM TRACKS t " +
+            "INNER JOIN TRACK_CATEGORIES tc ON t.id = tc.track_id " +
+            "WHERE tc.category_id = :categoryId AND t.is_deleted = 0",
+            countQuery = "SELECT COUNT(t.id) FROM TRACKS t " +
+                    "INNER JOIN TRACK_CATEGORIES tc ON t.id = tc.track_id " +
+                    "WHERE tc.category_id = :categoryId AND t.is_deleted = 0",
+            nativeQuery = true)
+    Page<Track> findTracksByCategoryId(@Param("categoryId") Integer categoryId, Pageable pageable);
+
     boolean existsByImgAndIdNot(String img, Integer id);
 }

@@ -44,7 +44,7 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     Page<History> findDistinctHistoryByUserId(@Param("userId") Integer userId, Pageable pageable);
 
     @Modifying
-    @Query("DELETE FROM History h WHERE h.playbackPosition < 5 OR h.listenedAt < :cutoffDate")
+    @Query("DELETE FROM History h WHERE h.playbackPosition < 10 OR h.listenedAt < :cutoffDate")
     void cleanupGarbageHistory(@Param("cutoffDate") LocalDateTime cutoffDate);
 
     @Query(value = "SELECT CAST(h.listened_at AS DATE) AS day, COUNT_BIG(h.id) AS views " +

@@ -50,6 +50,7 @@ public class SecurityConfig {
                                 .requestMatchers("/auth/**", "/oauth2/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/recommendations/sync").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/api/admin/system/cleanup-history").permitAll()
+                                .requestMatchers("/api/tracks/stream/preview/**").permitAll()
                                 .anyRequest().authenticated())
                 // 1. Cấu hình đăng nhập OAuth2
                 .oauth2Login(oauth2 -> oauth2

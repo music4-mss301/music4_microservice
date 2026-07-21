@@ -36,31 +36,25 @@ public class RecommendationController {
             @ApiResponse(responseCode = "400", description = "Lỗi kiểu dữ liệu tham số userId truyền vào")
     })
     public ResponseEntity<?> getRecommendations() {
-        // 1. Lấy thông tin user hiện tại từ Security Context (đã được JwtFilter xác thực)
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        // Nếu không có token hoặc đang là Guest vô danh -> ko cho
-        if (auth == null || !auth.isAuthenticated() || auth.getName().equals("anonymousUser")) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Vui lòng đăng nhập để sử dụng tính năng này!");
+        Integer userId = null; // Mặc định là null cho Guest
+
+        // Nếu ĐÃ đăng nhập, tiến hành lấy ID
+        if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+            User user = userRepository.findByUserName(auth.getName()).orElse(null);
+            // Artist không cần gợi ý nghe nhạc
+            if (user != null && "ARTIST".equalsIgnoreCase(user.getRole())) {
+                return ResponseEntity.ok(Collections.emptyList());
+            }
+            if (user != null) {
+                userId = user.getId();
+            }
         }
 
-        // 2. Lấy username từ token
-        String username = auth.getName();
-
-        // 3. Truy vấn Database để lấy userId
-        User user = userRepository.findByUserName(username)
-                .orElse(null);
-
-        if (user == null) {
-            return ResponseEntity.ok(Collections.emptyList());
-        }
-
-        if ("ARTIST".equalsIgnoreCase(user.getRole())) {
-            return ResponseEntity.ok(Collections.emptyList());
-        }
-
-        // 4. Truyền đúng userId cho AI xử lý
-        List<TrackSuggestResponse> suggestions = recommendationService.getRecommendations(user.getId());
+        // Truyền userId xuống Service.
+        // Nếu userId = null, Service sẽ tự động chạy hàm Fallback (Top Trending)
+        List<TrackSuggestResponse> suggestions = recommendationService.getRecommendations(userId);
         return ResponseEntity.ok(suggestions);
     }
 

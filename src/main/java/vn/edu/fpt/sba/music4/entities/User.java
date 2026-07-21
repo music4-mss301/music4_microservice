@@ -54,11 +54,15 @@ public class User implements UserDetails {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<PasswordResetToken> passwordResetTokens;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<UserProvider> userProviders;
 
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
+
+    @Column(name = "enabled")
+    private Boolean enabled = false;
+
     public User(String name, String img, String email, String username, String password, String role) {
         this.name = name;
         this.img = img;
@@ -77,5 +81,10 @@ public class User implements UserDetails {
     @Override
     public String getUsername() {
         return this.userName;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return this.enabled;
     }
 }
