@@ -73,12 +73,10 @@ public class SearchServiceImpl implements ISearchService {
         // Khởi tạo đối tượng phân trang chung cho tất cả
         Pageable pageable = PageRequest.of(page, size);
 
-        // 1. TÌM KIẾM TẤT CẢ (Không giới hạn Top 5 nữa, lấy theo đúng size truyền vào)
         if (type == null || type.equalsIgnoreCase("all")) {
             Page<Track> trackPage = trackRepository.searchByName(cleanKey, pageable);
             Page<Album> albumPage = albumRepository.searchByName(cleanKey, pageable);
             Page<Artist> artistPage = artistRepository.searchByName(cleanKey, pageable);
-            Page<Playlist> playlistPage = playlistRepository.searchByName(cleanKey, pageable);
             Page<Category> categoryPage = categoryRepository.searchByName(cleanKey, pageable);
 
             Page<TrackResponseDTO> trackDTOPage = trackPage.map(this::mapToTrackDTO);
@@ -92,32 +90,24 @@ public class SearchServiceImpl implements ISearchService {
                     artist.getId(), artist.getName(), artist.getImg(), artist.getUsername(),artist.getTrackTotal() ,artist.getAlbumTotal()
             ));
 
-            Page<PlaylistResponseDTO> playlistDTOPage = playlistPage.map(playlist -> new PlaylistResponseDTO(
-                    playlist.getId(),
-                    playlist.getName(),
-                    playlist.getUser() != null ? playlist.getUser().getId() : null,
-                    playlist.getUser() != null ? playlist.getUser().getUsername() : null, // 🟢 Sửa lại lấy đúng username
-                    playlist.getDescription(),
-                    playlist.getImg()
-            ));
 
             Page<CategoryResponseDTO> categoryDTOPage = categoryPage.map(category -> new CategoryResponseDTO(
                     category.getId(), category.getName()
             ));
-            return new SearchResultResponseDTO(trackDTOPage, albumDTOPage, artistDTOPage, playlistDTOPage, categoryDTOPage);
+            return new SearchResultResponseDTO(trackDTOPage, albumDTOPage, artistDTOPage, categoryDTOPage);
         }
 
         // 2. TÌM KIẾM CHI TIẾT THEO TYPE
         return switch (type.toLowerCase()) {
             case "track" -> {
                 Page<TrackResponseDTO> trackDTOPage = trackRepository.searchByName(cleanKey, pageable).map(this::mapToTrackDTO);
-                yield new SearchResultResponseDTO(trackDTOPage,null,null,null,null); }
+                yield new SearchResultResponseDTO(trackDTOPage,null,null,null); }
 
             case "artist" -> {
                 Page<ArtistResponseDTO> artistDTOPage = artistRepository.searchByName(cleanKey, pageable).map(artist -> new ArtistResponseDTO(
                         artist.getId(), artist.getName(), artist.getImg(), artist.getUsername(),artist.getTrackTotal(),artist.getAlbumTotal()
                 ));
-                yield new SearchResultResponseDTO(null, null, artistDTOPage, null, null);
+                yield new SearchResultResponseDTO(null, null, artistDTOPage,null);
             }
 
             case "album" -> {
@@ -125,26 +115,16 @@ public class SearchServiceImpl implements ISearchService {
                         album.getId(), album.getName(), album.getImg(), album.getUploadDate(), album.getTrackTotal(),
                         album.getArtist() != null ? album.getArtist().getId() : null
                 ));
-                 yield new SearchResultResponseDTO(null, albumDTOPage, null, null, null);
+                 yield new SearchResultResponseDTO(null, albumDTOPage, null, null);
             }
-            case "playlist" -> {
-                Page<PlaylistResponseDTO> playlistDTOPage = playlistRepository.searchByName(cleanKey, pageable).map(playlist -> new PlaylistResponseDTO(
-                        playlist.getId(),
-                        playlist.getName(),
-                        playlist.getUser() != null ? playlist.getUser().getId() : null,
-                        playlist.getUser() != null ? playlist.getUser().getUsername() : null,
-                        playlist.getDescription(),
-                        playlist.getImg()
-                ));
-                 yield new SearchResultResponseDTO(null, null, null, playlistDTOPage, null);
-            }
+
             case "category" -> {
                 Page<CategoryResponseDTO> categoryDTOPage = categoryRepository.searchByName(cleanKey, pageable).map(category -> new CategoryResponseDTO(
                         category.getId(), category.getName()
                 ));
-                 yield new SearchResultResponseDTO(null, null, null, null, categoryDTOPage);
+                 yield new SearchResultResponseDTO(null, null, null, categoryDTOPage);
             }
-            default -> new SearchResultResponseDTO(null, null, null, null, null);
+            default -> new SearchResultResponseDTO(null, null, null, null);
         };
     }
 }
