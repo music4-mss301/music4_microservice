@@ -57,8 +57,11 @@ public class AuthController {
         String source = "";
         String role = user.getAuthorities().iterator().next().getAuthority();
 
-        if (user instanceof Artist) {
-            Artist artist = (Artist) user;
+        if(!user.isEnabled()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponse("Tài khoản chưa được xác thực! Vui lòng kiểm tra email để xác thực tài khoản."));
+        }
+
+        if (user instanceof Artist artist) {
             id = artist.getId();
             name = artist.getName();
             img = artist.getImg();

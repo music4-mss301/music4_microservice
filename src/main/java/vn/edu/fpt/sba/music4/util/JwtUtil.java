@@ -32,6 +32,7 @@ public class JwtUtil {
                     .subject(user.getUsername())
                     .claim("id", castArtist.getId())
                     .claim("img", castArtist.getImg())
+                    .claim("name", castArtist.getName())
                     .claim("role",   role)
                     .claim("source", source)
                     .issuedAt(new Date())
@@ -49,8 +50,9 @@ public class JwtUtil {
                 .subject(user.getUsername())
                 .claim("id", castUser.getId())
                 .claim("img", castUser.getImg())
+                .claim("name", castUser.getName())
                 .claim("role",   role)
-                .claim("source", source)   // <-- key point
+                .claim("source", source)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + expMs))
                 .signWith(key())

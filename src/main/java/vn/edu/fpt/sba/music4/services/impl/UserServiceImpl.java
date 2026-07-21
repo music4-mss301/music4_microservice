@@ -15,10 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.sba.music4.dtos.request.RegistrationRequest;
 import vn.edu.fpt.sba.music4.dtos.request.UserRequest;
 import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
-import vn.edu.fpt.sba.music4.entities.Artist;
-import vn.edu.fpt.sba.music4.entities.Provider;
-import vn.edu.fpt.sba.music4.entities.User;
-import vn.edu.fpt.sba.music4.entities.UserProvider;
+import vn.edu.fpt.sba.music4.entities.*;
 import vn.edu.fpt.sba.music4.enums.ERole;
 import vn.edu.fpt.sba.music4.exceptions.AccessDeniedException;
 import vn.edu.fpt.sba.music4.repositories.*;
@@ -44,13 +41,16 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
     private final PlaylistTrackRepository playlistTrackRepository;
     private final  NotificationRepository notificationRepository;
     private final HistoryRepository historyRepository;
+    private final VerificationTokenRepository verificationTokenRepository;
+    private final EmailService emailService;
+
     public UserServiceImpl(UserRepository userRepository, ArtistRepository artistRepository,
                            ProviderRepository providerRepository,
                            UserProviderRepository userProviderRepository, AWSUtil aWSUtil,
-     FavoriteRepository favoriteRepository, PlaylistRepository playlistRepository,
+                           FavoriteRepository favoriteRepository, PlaylistRepository playlistRepository,
                            PlaylistTrackRepository playlistTrackRepository,
                            NotificationRepository notificationRepository,
-                           HistoryRepository historyRepository) {
+                           HistoryRepository historyRepository, VerificationTokenRepository verificationTokenRepository, EmailService emailService) {
         this.userRepository = userRepository;
         this.artistRepository = artistRepository;
         this.providerRepository = providerRepository;
@@ -61,6 +61,8 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
         this.playlistTrackRepository = playlistTrackRepository;
         this.notificationRepository = notificationRepository;
         this.historyRepository = historyRepository;
+        this.verificationTokenRepository = verificationTokenRepository;
+        this.emailService = emailService;
     }
 
     @Override
@@ -90,12 +92,23 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
 
         String hashedPassword = BCrypt.hashpw(registrationRequest.password(), BCrypt.gensalt()); // TODO: Hash password before saving to database)
 
-        return this.userRepository.save(new User(registrationRequest.name(),
+        User user = new User(
+                registrationRequest.name(),
                 "null",
                 registrationRequest.email(),
                 registrationRequest.username(),
                 hashedPassword,
-                ERole.LISTENER.name()));
+                ERole.LISTENER.name()
+        );
+        user.setEnabled(false);
+
+        User savedUser = userRepository.save(user);
+
+        String token = UUID.randomUUID().toString();
+        verificationTokenRepository.save(new VerificationToken(token, savedUser.getEmail(), "LISTENER"));
+        emailService.sendVerificationEmail(savedUser.getEmail(), token);
+
+        return savedUser;
      }
 
     private UserResponseDTO toResponseDto(User user) {
@@ -179,11 +192,11 @@ public class UserServiceImpl implements IUserService, UserDetailsService {
         Optional<UserProvider> linkOptional = userProviderRepository.findByProviderUserIdAndProvider(providerUserId, provider);
 
         if (linkOptional.isPresent()) {
-            // Đã từng đăng nhập bằng Google trước đây -> Cập nhật lại thông tin mới nhất và trả về User
             User existUser = linkOptional.get().getUser();
-            existUser.setName(name);
-            existUser.setImg(picture);
-            return userRepository.save(existUser);
+//            existUser.setName(name);
+//            existUser.setImg(picture);
+//            return userRepository.save(existUser);
+            return existUser;
         }
 
         Optional<User> userOptional = userRepository.findByEmail(email);

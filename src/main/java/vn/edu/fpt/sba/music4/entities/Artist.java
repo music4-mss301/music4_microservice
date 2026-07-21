@@ -63,8 +63,18 @@ public class Artist implements UserDetails {
     }
     @Column(name = "is_deleted")
     private Boolean isDeleted = false;
+
+    @Column(name="enabled")
+    private Boolean enabled = false;
     @Override
     public String getUsername() {
         return this.userName;
     }
+
+    @Override
+    public boolean isEnabled() {
+        return this.enabled;
+    }
+
+
 }
