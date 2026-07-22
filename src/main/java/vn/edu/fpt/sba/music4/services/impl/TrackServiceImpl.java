@@ -592,47 +592,58 @@ public class TrackServiceImpl implements ITrackService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteTrack(Integer id, String currentUsername) {
-        // 1. Tìm bài hát xem có tồn tại không trước khi tiến hành xóa
+        // 1. Tìm bài hát xem có tồn tại không
         Track track = trackRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát ID: " + id));
 
-        // Tìm ID của người đang gửi request dựa vào username
         Artist currentUser = artistRepository.findByUsername(currentUsername);
 
-        // Tìm MAIN artist của bài hát
         Integer mainArtistID = track.getTrackArtists().stream()
                 .filter(ta -> "MAIN".equals(ta.getRole()))
                 .map(ta -> ta.getArtist().getId())
                 .findFirst().orElse(-1);
 
-        // Nếu không phải là người sở hữu (MAIN), chặn lại ngay!
         if (!currentUser.getId().equals(mainArtistID)) {
-            throw new RuntimeException("Bạn không có quyền chỉnh sửa bài hát này vì bạn không phải nghệ sĩ chính (MAIN)!");
+            throw new RuntimeException("Bạn không có quyền chỉnh sửa bài hát này!");
         }
 
-        // 2. 🔥 GIẢM TRACK TOTAL CỦA CÁC NGHỆ SĨ THAM GIA BÀI HÁT NÀY
+        // GIẢM TRACK TOTAL CỦA CÁC NGHỆ SĨ
         if (track.getTrackArtists() != null) {
             for (TrackArtist trackArtist : track.getTrackArtists()) {
                 Artist artist = trackArtist.getArtist();
                 Integer currentTotal = artist.getTrackTotal();
                 if (currentTotal != null && currentTotal > 0) {
                     artist.setTrackTotal(currentTotal - 1);
-                    artistRepository.save(artist); // Cập nhật lại số lượng mới xuống db
+                    artistRepository.save(artist);
                 }
             }
         }
 
+        // Xóa file âm thanh (Audio luôn là duy nhất cho mỗi track)
         if (track.getFilePath() != null) {
-            awsUtil.deleteFile(track.getFilePath());      // Xóa file âm thanh (.mp3/.wav)
+            awsUtil.deleteFile(track.getFilePath());
         }
         if (track.getPreviewPath() != null) {
-            awsUtil.deleteFile(track.getPreviewPath());      // Xóa file âm thanh (.mp3/.wav)
-        }
-        if (track.getImg() != null) {
-            awsUtil.deleteFile(track.getImg()); // Xóa file ảnh bìa bài hát
+            awsUtil.deleteFile(track.getPreviewPath());
         }
 
-        // 3. Tiến hành xóa bài hát (Cascade sẽ tự động dọn dẹp liên kết ở các bảng trung gian)
+        // 🔥 XỬ LÝ ẢNH BÌA: Kiểm tra an toàn trước khi xóa trên AWS S3
+        if (track.getImg() != null) {
+            String trackImg = track.getImg();
+
+            // Check 1: Lấy ảnh của Album (nếu có)
+            boolean isUsedByAlbum = (track.getAlbum() != null && trackImg.equals(track.getAlbum().getImg()));
+
+            // Check 2: Kiểm tra xem có bài hát NÀO KHÁC đang xài chung đường dẫn ảnh này không
+            boolean isUsedByOtherTracks = trackRepository.existsByImgAndIdNot(trackImg, track.getId());
+
+            // ❌ CHỈ XÓA FILE TRÊN S3 NẾU KHÔNG AI KHÁC ĐANG DÙNG
+            if (!isUsedByAlbum && !isUsedByOtherTracks) {
+                awsUtil.deleteFile(trackImg);
+            }
+        }
+
+        // Tiến hành xóa bài hát khỏi Database
         trackRepository.delete(track);
 
         if (track.getAlbum() != null) {
