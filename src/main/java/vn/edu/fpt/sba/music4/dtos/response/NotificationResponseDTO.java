@@ -6,6 +6,8 @@ public record NotificationResponseDTO(
         Integer id,
         Integer trackId,
         String trackName,
+        Integer albumId,
+        String albumName,
         String artistName,
         String content,
         Boolean isRead,

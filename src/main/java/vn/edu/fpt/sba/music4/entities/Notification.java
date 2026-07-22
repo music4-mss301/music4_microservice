@@ -28,6 +28,10 @@ public class Notification {
     @JoinColumn(name = "track_id")
     private Track track;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "album_id")
+    private Album album;
+
     @Column(nullable = false, columnDefinition = "NVARCHAR(MAX)")
     private String content;
 

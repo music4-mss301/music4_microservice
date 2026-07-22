@@ -28,6 +28,7 @@ public class TrackServiceImpl implements ITrackService {
     private ArtistRepository artistRepository;
     private final AWSUtil awsUtil;
     private final vn.edu.fpt.sba.music4.services.INotificationService notificationService;
+    private final NotificationRepository notificationRepository;
 
     public TrackServiceImpl(TrackRepository trackRepository,
                             AlbumRepository albumRepository,
@@ -36,6 +37,7 @@ public class TrackServiceImpl implements ITrackService {
                             TrackArtistRepository trackArtistRepository,
                             ArtistRepository artistRepository,
                             AWSUtil awsUtil,
+                            NotificationRepository notificationRepository,
                             vn.edu.fpt.sba.music4.services.INotificationService notificationService) {
         this.trackRepository = trackRepository;
         this.albumRepository = albumRepository;
@@ -45,6 +47,7 @@ public class TrackServiceImpl implements ITrackService {
         this.artistRepository = artistRepository;
         this.awsUtil = awsUtil;
         this.notificationService = notificationService;
+        this.notificationRepository = notificationRepository;
     }
 
     // @Autowired
@@ -592,7 +595,8 @@ public class TrackServiceImpl implements ITrackService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteTrack(Integer id, String currentUsername) {
-        // 1. Tìm bài hát xem có tồn tại không
+        notificationRepository.deleteByTrackId(id);
+        // 1. Tìm bài hát xem có tồn tại không trước khi tiến hành xóa
         Track track = trackRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát ID: " + id));
 
