@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import vn.edu.fpt.sba.music4.dtos.request.CommentRequest;
+import vn.edu.fpt.sba.music4.dtos.request.UpdateCommentRequest;
 import vn.edu.fpt.sba.music4.dtos.response.CommentResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Comment;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
@@ -52,18 +53,21 @@ public class CommentServiceImpl implements ICommentService {
             String name = "Ẩn danh";
             String img = null;
             String role = "UNKNOWN";
+            Integer uId = null;
 
             if (c.getUser() != null) {
                 name = c.getUser().getName();
                 img = c.getUser().getImg();
                 role = "USER";
+                uId = c.getUser().getId(); // Lấy ID của User bình luận
             } else if (c.getArtist() != null) {
                 name = c.getArtist().getName();
                 img = c.getArtist().getImg();
                 role = "ARTIST";
+                uId = c.getArtist().getId(); // Lấy ID của Artist bình luận
             }
 
-            return new CommentResponseDTO(c.getId(), name, img, role, c.getContent(), c.getCreatedAt());
+            return new CommentResponseDTO(c.getId(), uId, name, img, role, c.getContent(), c.getCreatedAt());
         }).toList();
     }
 
@@ -74,5 +78,15 @@ public class CommentServiceImpl implements ICommentService {
             throw new RuntimeException("Không tìm thấy bình luận cần xóa.");
         }
         commentRepository.deleteById(commentId);
+    }
+
+    @Override
+    @Transactional
+    public void updateComment(Integer commentId, UpdateCommentRequest request) {
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bình luận cần cập nhật."));
+
+        comment.setContent(request.content());
+        commentRepository.save(comment);
     }
 }
