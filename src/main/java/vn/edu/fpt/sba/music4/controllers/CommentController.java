@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.CommentRequest;
+import vn.edu.fpt.sba.music4.dtos.request.UpdateCommentRequest; // <-- Thêm import này
 import vn.edu.fpt.sba.music4.dtos.response.CommentResponseDTO;
 import vn.edu.fpt.sba.music4.services.ICommentService;
 
@@ -28,6 +29,18 @@ public class CommentController {
     @GetMapping("/track/{trackId}")
     public ResponseEntity<List<CommentResponseDTO>> getCommentsByTrack(@PathVariable Integer trackId) {
         return ResponseEntity.ok(commentService.getCommentsByTrack(trackId));
+    }
+
+    // Bổ sung method PUT để nhận yêu cầu chỉnh sửa bình luận từ Frontend
+    @PutMapping("/{commentId}")
+    public ResponseEntity<?> updateComment(
+            @PathVariable Integer commentId,
+            @Valid @RequestBody UpdateCommentRequest request) {
+        commentService.updateComment(commentId, request);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "Cập nhật bình luận thành công!"
+        ));
     }
 
     @DeleteMapping("/{commentId}")
