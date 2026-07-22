@@ -102,6 +102,13 @@ public class CategoryServiceImpl implements ICategoryService {
         if (category.getName() == null || category.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Tên thể loại không được để trống!");
         }
+        String trimmedName = category.getName().trim();
+
+        // 2. Kiểm tra nếu tên thể loại đã tồn tại (không phân biệt hoa/thường)
+        if (categoryRepository.existsByNameIgnoreCase(trimmedName)) {
+            throw new BusinessException("Thể loại '" + trimmedName + "' đã tồn tại trong hệ thống!");
+        }
+        category.setName(trimmedName);
         return categoryRepository.save(category);
     }
 
@@ -115,7 +122,13 @@ public class CategoryServiceImpl implements ICategoryService {
             throw new IllegalArgumentException("Tên thể loại không được để trống!");
         }
 
-        existingCategory.setName(categoryDetails.getName().trim());
+        String trimmedName = categoryDetails.getName().trim();
+        if (!existingCategory.getName().equalsIgnoreCase(trimmedName)
+                && categoryRepository.existsByNameIgnoreCase(trimmedName)) {
+            throw new BusinessException("Thể loại '" + trimmedName + "' đã tồn tại trong hệ thống!");
+        }
+
+        existingCategory.setName(trimmedName);
         Category savedCategory = categoryRepository.save(existingCategory);
 
         return new CategoryResponseDTO(savedCategory.getId(), savedCategory.getName());

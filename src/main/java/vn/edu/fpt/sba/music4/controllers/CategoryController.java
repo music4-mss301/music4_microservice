@@ -51,8 +51,12 @@ public class CategoryController {
     @PostMapping("")
     @Operation(summary = "Thêm mới một thể loại nhạc", description = "Tạo một dòng thể loại mới (Admin)")
     @ApiResponse(responseCode = "200", description = "Thêm mới thành công")
-    public ResponseEntity<Category> createCategory(@RequestBody Category category) {
-        return ResponseEntity.ok(categoryService.createCategory(category));
+    public ResponseEntity<?> createCategory(@RequestBody Category category) {
+        try {
+            return ResponseEntity.ok(categoryService.createCategory(category));
+        } catch (BusinessException | IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        }
     }
 
     // ok

@@ -125,7 +125,7 @@ public class TrackController {
     // ok
     @PostMapping("/bulk-json")
     @Operation(summary = "Lưu hàng loạt bài hát bằng JSON", description = "Nhận vào metadata JSON đã có sẵn link S3 từ bước upload trước")
-    public ResponseEntity<String> saveBulkTracksJson(@RequestBody AlbumBulkJsonDTO dto) {
+    public ResponseEntity<String> saveBulkTracksJson(@Valid @RequestBody AlbumBulkJsonDTO dto) {
         trackService.saveBulkTracksJson(dto);
         return ResponseEntity.ok("Phát hành Album thành công!");
     }
