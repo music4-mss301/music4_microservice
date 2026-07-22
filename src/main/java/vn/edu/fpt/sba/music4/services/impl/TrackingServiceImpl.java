@@ -22,6 +22,7 @@ import vn.edu.fpt.sba.music4.repositories.TrackRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
 import vn.edu.fpt.sba.music4.services.ITrackingService;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -75,6 +76,14 @@ public class TrackingServiceImpl implements ITrackingService{
 
             Optional<History> lastCompletedHistory =
                     historyRepository.findTopByUserIdAndTrackIdOrderByListenedAtDesc(userId, trackId);
+
+            if (lastCompletedHistory.isPresent()) {
+                long secondsSinceLast = Duration.between(lastCompletedHistory.get().getListenedAt(), LocalDateTime.now()).getSeconds();
+                if (secondsSinceLast < 8) {
+                    log.warn("[ANTI-CHEAT] Gọi quá nhanh, nghi ngờ giả mạo tốc độ phát. User {}", userId);
+                    return;
+                }
+            }
 
             boolean countedRecently =
                     lastCompletedHistory.isPresent()
