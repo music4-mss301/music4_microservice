@@ -41,9 +41,13 @@ public class TrackingController {
             @ApiResponse(responseCode = "200", description = "Đồng bộ thời gian thành công"),
             @ApiResponse(responseCode = "400", description = "Dữ liệu đầu vào không hợp lệ (VD: số giây âm)")
     })
-    public ResponseEntity<String> syncPlaybackTime(@Valid @RequestBody SyncTimeRequest request) {
-        trackingService.syncPlaybackPosition(request);
-        return ResponseEntity.ok("Đồng bộ thời gian thành công!");
+    public ResponseEntity<?> syncTime(@RequestBody @Valid SyncTimeRequest request) {
+        try {
+            trackingService.syncPlaybackPosition(request);
+            return ResponseEntity.ok("Đồng bộ playback position thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Lỗi: " + e.getMessage());
+        }
     }
 
     @GetMapping("/history/{userId}")
