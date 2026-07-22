@@ -53,6 +53,7 @@ public class CustomOAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHa
 
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:5173/oauth2/redirect")
                 .queryParam("token", accessToken)
+                .queryParam("refreshToken", refreshToken.getToken())
                 .build().toUriString();
 
         clearAuthenticationAttributes(request);
