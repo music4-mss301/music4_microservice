@@ -46,23 +46,22 @@ public class TrackingServiceImpl implements ITrackingService{
 
             boolean isCreator = false;
             boolean isAdmin = false;
-            User currentUser = null;
 
-            // Lấy User để kiểm tra Role Admin và lưu History
+            // 1. Check quyền Admin
             if (userId != null) {
-                currentUser = userRepository.findById(userId).orElse(null);
+                User currentUser = userRepository.findById(userId).orElse(null);
                 if (currentUser != null && "ADMIN".equalsIgnoreCase(currentUser.getRole())) {
                     isAdmin = true;
                 }
             }
 
-            // Kiểm tra quyền Tác giả
+            // 2. Check quyền Tác giả
             if (currentUsername != null && !currentUsername.equals("anonymousUser")) {
                 isCreator = track.getTrackArtists().stream()
                         .anyMatch(ta -> ta.getArtist().getUsername().equals(currentUsername));
             }
 
-            // Cộng view nếu ko phải Admin hoặc Artist
+            // 3. Tiến hành cộng View
             if (!isCreator && !isAdmin) {
                 trackRepository.incrementViewCount(trackId);
                 log.info("[SUCCESS] Đã cộng 1 view cho bài hát {}", trackId);
@@ -71,20 +70,8 @@ public class TrackingServiceImpl implements ITrackingService{
                         currentUsername, isAdmin, isCreator);
             }
 
-            // Lưu Lịch sử
-            History history = new History();
-            history.setTrack(track);
-
-            if (currentUser != null) {
-                history.setUser(currentUser);
-            }
-
-            history.setListenedAt(LocalDateTime.now());
-            historyRepository.save(history);
-
-            log.info("Lịch sử ghi lại cho bài hát {} do người dùng {}", trackId, userId);
         } catch (Exception e) {
-            log.error("Lỗi khi ghi lại lịch sử phát nhạc cho bài hát {}: {}", trackId, e.getMessage());
+            log.error("Lỗi khi ghi lại lượt nghe cho bài hát {}: {}", trackId, e.getMessage());
         }
     }
 
