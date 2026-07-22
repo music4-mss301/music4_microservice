@@ -17,6 +17,12 @@ public interface RatingRepository extends JpaRepository<Rating, Integer> {
 
     List<Rating> findByUserId(Integer userId);
 
+    @Query("SELECT AVG(r.ratingValue) FROM Rating r WHERE r.track.id = :trackId")
+    Double getAverageRatingByTrackId(@Param("trackId") Integer trackId);
+
+    @Query("SELECT COUNT(r) FROM Rating r WHERE r.track.id = :trackId")
+    long countByTrackId(@Param("trackId") Integer trackId);
+
     @Modifying
     @Query("DELETE FROM Rating r WHERE r.track.id IN (SELECT ta.track.id FROM TrackArtist ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN')")
     void deleteRatingsByMainArtist(@Param("artistId") Integer artistId);

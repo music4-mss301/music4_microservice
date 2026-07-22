@@ -16,8 +16,6 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@SQLDelete(sql = "UPDATE TRACKS SET is_deleted = 1 WHERE id = ?")
-@Where(clause = "is_deleted = 0")
 public class Track {
 
     @Id
@@ -58,8 +56,6 @@ public class Track {
     @JsonIgnore
     private List<TrackCategory> trackCategories;
 
-    @Column(name = "is_deleted")
-    private Boolean isDeleted = false;
 
     @PrePersist
     protected void onCreate() {

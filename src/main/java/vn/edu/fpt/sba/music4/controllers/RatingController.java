@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.sba.music4.dtos.request.RatingRequest;
+import vn.edu.fpt.sba.music4.dtos.response.RatingResponseDTO;
 import vn.edu.fpt.sba.music4.services.IRatingService;
 
 import java.util.Map;
@@ -25,6 +26,7 @@ public class RatingController {
                 "message", "Đánh giá bài hát thành công!"
         ));
     }
+
     @GetMapping("/track/{trackId}/user/{userId}")
     public ResponseEntity<?> getUserRating(
             @PathVariable Integer trackId,
@@ -34,6 +36,22 @@ public class RatingController {
         return ResponseEntity.ok(Map.of(
                 "success", true,
                 "rating", score
+        ));
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<RatingResponseDTO> getRatingStats(
+            @RequestParam Integer userId,
+            @RequestParam Integer trackId) {
+        return ResponseEntity.ok(ratingService.getRatingStats(userId, trackId));
+    }
+
+    @GetMapping("/average/{trackId}")
+    public ResponseEntity<?> getAverageRating(@PathVariable Integer trackId) {
+        double averageScore = ratingService.getAverageRating(trackId);
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "average", averageScore
         ));
     }
 }
