@@ -733,7 +733,7 @@ public class TrackServiceImpl implements ITrackService {
                 }
             }
 
-            // 4. Tái sử dụng lại toàn bộ các hàm logic cũ của bạn (Không cần sửa đổi gì các hàm này)
+            // 4. Tái sử dụng lại toàn bộ các hàm logic cũ
             saveTrackCategories(savedTrack, trackDto.getCategoryIds());
             saveTrackArtists(savedTrack, finalArtistIds); // Hàm này tự tăng trackTotal cho từng Artist luôn!
         }

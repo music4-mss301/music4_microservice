@@ -69,12 +69,22 @@ public class TrackController {
 
         UserDetails userDetails =
                 (UserDetails) authentication.getPrincipal();
-//        String currentUsername = "artist1"; // Đây là username/email của ca sĩ
+
         if (audioFile == null || audioFile.isEmpty()) {
             throw new IllegalArgumentException("Lỗi: File âm thanh (audioFile) không được để trống!");
         }
         if (coverImage == null || coverImage.isEmpty()) {
             throw new IllegalArgumentException("Lỗi: File ảnh bìa (coverImage) không được để trống!");
+        }
+
+        String audioContentType = audioFile.getContentType();
+        if (audioContentType == null || !audioContentType.startsWith("audio/")) {
+            throw new IllegalArgumentException("Lỗi: File âm thanh không hợp lệ! Vui lòng chọn đúng tệp âm thanh (MP3, WAV, FLAC,...).");
+        }
+
+        String imageContentType = coverImage.getContentType();
+        if (imageContentType == null || !imageContentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Lỗi: File ảnh bìa không hợp lệ! Vui lòng chọn đúng tệp hình ảnh (PNG, JPG, JPEG,...).");
         }
         TrackDetailResponseDTO response = trackService.uploadTrack(audioFile, coverImage, dto, userDetails.getUsername());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -93,6 +103,22 @@ public class TrackController {
         }
 
         if (!"images".equalsIgnoreCase(type) && !"tracks".equalsIgnoreCase(type)) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Type không hợp lệ! Chỉ chấp nhận 'images' hoặc 'tracks'."));
+        }
+        String contentType = file.getContentType();
+
+        // 🔴 1. Nếu type là "tracks", BẮT BUỘC file phải là audio/*
+        if ("tracks".equalsIgnoreCase(type)) {
+            if (contentType == null || !contentType.startsWith("audio/")) {
+                return ResponseEntity.badRequest().body(Map.of("message", "File nhạc không hợp lệ! Vui lòng chọn đúng định dạng âm thanh (MP3, WAV,...)."));
+            }
+        }
+        // 🔴 2. Nếu type là "images", BẮT BUỘC file phải là image/*
+        else if ("images".equalsIgnoreCase(type)) {
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return ResponseEntity.badRequest().body(Map.of("message", "File ảnh không hợp lệ! Vui lòng chọn đúng định dạng hình ảnh (PNG, JPG,...)."));
+            }
+        } else {
             return ResponseEntity.badRequest().body(Map.of("message", "Type không hợp lệ! Chỉ chấp nhận 'images' hoặc 'tracks'."));
         }
 
