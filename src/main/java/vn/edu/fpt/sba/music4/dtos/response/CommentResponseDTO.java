@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public record CommentResponseDTO(
         Integer commentId,
+        Integer userId,
         String commenterName,
         String commenterImg,
         String commenterRole,
