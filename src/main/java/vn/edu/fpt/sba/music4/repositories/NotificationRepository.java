@@ -18,4 +18,12 @@ public interface NotificationRepository extends JpaRepository<Notification, Inte
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.artist.id = :artistId OR n.track.id IN (SELECT ta.track.id FROM TrackArtist ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN')")
     void deleteNotificationsByArtistOrMainTrack(@Param("artistId") Integer artistId);
+
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.album.id = :albumId")
+    void deleteByAlbumId(@Param("albumId") Integer albumId);
+
+    @Modifying
+    @Query("DELETE FROM Notification n WHERE n.track.id = :trackId")
+    void deleteByTrackId(@Param("trackId") Integer trackId);
 }

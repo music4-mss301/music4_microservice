@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.*;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.entities.Artist;
-import vn.edu.fpt.sba.music4.entities.Follow;
 import vn.edu.fpt.sba.music4.entities.Notification;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.exceptions.BusinessException;
@@ -16,7 +15,6 @@ import vn.edu.fpt.sba.music4.services.IAlbumService;
 import vn.edu.fpt.sba.music4.services.INotificationService;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -93,23 +91,10 @@ public class AlbumServiceImpl implements IAlbumService {
         mainArtist.setAlbumTotal(realTotalAlbums);
         artistRepository.save(mainArtist);
 
+        // 5. Gửi thông báo real-time đến tất cả người theo dõi nghệ sĩ
         try {
-            List<Follow> follows = followRepository.findByArtistId(mainArtist.getId());
-
-            if (follows != null && !follows.isEmpty()) {
-                for (Follow follow : follows) {
-                    Notification notification = new Notification();
-                    notification.setUser(follow.getUser()); // Gửi thông báo đến từng fan
-                    notification.setArtist(mainArtist);
-                    notification.setAlbum(savedAlbum); // Gắn album liên kết
-                    notification.setContent("Nghệ sĩ " + mainArtist.getName() + " vừa phát hành album mới: " + savedAlbum.getName());
-                    notification.setIsRead(false);
-                    notification.setCreatedAt(LocalDateTime.now());
-
-                    if (notificationService instanceof NotificationServiceImpl impl) {
-                        impl.saveAndSend(notification);
-                    }
-                }
+            if (notificationService instanceof NotificationServiceImpl impl) {
+                impl.sendNewAlbumNotification(savedAlbum); // 👈 Gọi đúng hàm chuẩn chuyên xử lý album
             }
         } catch (Exception e) {
             System.err.println("Lỗi gửi thông báo tạo album cho người theo dõi: " + e.getMessage());
@@ -197,8 +182,9 @@ public class AlbumServiceImpl implements IAlbumService {
     public void deleteAlbum(Integer id) {
         Album album = albumRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Không thể xóa! Không tìm thấy Album có ID: " + id));
+        notificationRepository.deleteByAlbumId(id);
 
-        // 1. Xử lý bảng NOTIFICATIONS: Gỡ album_id thành null để tránh lỗi khóa ngoại FKjkfglt8k7yrmt3gbggt7mj17x
+        // 1. Xử lý bảng NOTIFICATIONS: Gỡ album_id thành null để tránh lỗi khóa ngoại
         List<Notification> notifications = notificationRepository.findByAlbumId(id);
         if (notifications != null && !notifications.isEmpty()) {
             for (Notification notif : notifications) {

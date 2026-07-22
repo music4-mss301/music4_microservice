@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import vn.edu.fpt.sba.music4.dtos.response.NotificationResponseDTO;
+import vn.edu.fpt.sba.music4.entities.Album;
+import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.entities.Follow;
 import vn.edu.fpt.sba.music4.entities.Notification;
 import vn.edu.fpt.sba.music4.entities.Track;
@@ -115,8 +117,6 @@ public class NotificationServiceImpl implements INotificationService {
         Integer targetUserId = null;
         if (savedNoti.getUser() != null) {
             targetUserId = savedNoti.getUser().getId();
-        } else if (savedNoti.getArtist() != null) {
-            targetUserId = savedNoti.getArtist().getId();
         }
 
         if (targetUserId != null && emitters.containsKey(targetUserId)) {
@@ -146,6 +146,55 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     @Transactional
+    public void sendNewAlbumNotification(Album album) {
+        if (album == null || album.getArtist() == null) return;
+
+        Artist artist = album.getArtist();
+        List<Follow> follows = followRepository.findByArtistId(artist.getId());
+        if (follows == null || follows.isEmpty()) return;
+
+        for (Follow follow : follows) {
+            if (follow.getUser() == null) continue;
+
+            Notification notification = new Notification();
+            notification.setUser(follow.getUser()); // Gắn đúng Fan (User) nhận thông báo
+            notification.setArtist(artist);
+            notification.setAlbum(album);
+            notification.setContent("Nghệ sĩ " + artist.getName() + " vừa phát hành album mới: " + album.getName());
+            notification.setIsRead(false);
+            notification.setCreatedAt(LocalDateTime.now());
+
+            Notification savedNoti = notificationRepository.save(notification);
+
+            Integer targetUserId = follow.getUser().getId();
+            if (emitters.containsKey(targetUserId)) {
+                try {
+                    NotificationResponseDTO responseDTO = new NotificationResponseDTO(
+                            savedNoti.getId(),
+                            null,
+                            null,
+                            album.getId(),
+                            album.getName(),
+                            artist.getName(),
+                            savedNoti.getContent(),
+                            savedNoti.getIsRead(),
+                            savedNoti.getCreatedAt()
+                    );
+
+                    emitters.get(targetUserId).send(
+                            SseEmitter.event()
+                                    .name("NEW_ALBUM") // 👈 Bắn đúng event name mà FE đang lắng nghe
+                                    .data(responseDTO)
+                    );
+                } catch (IOException e) {
+                    emitters.remove(targetUserId);
+                }
+            }
+        }
+    }
+
+    @Override
+    @Transactional
     public void sendNewTrackNotification(Track track) {
         if (track == null) return;
 
@@ -160,6 +209,8 @@ public class NotificationServiceImpl implements INotificationService {
             if (follows == null || follows.isEmpty()) continue;
 
             for (Follow follow : follows) {
+                if (follow.getUser() == null) continue;
+
                 Notification notification = new Notification();
                 notification.setUser(follow.getUser());
                 notification.setArtist(artist);
@@ -177,8 +228,8 @@ public class NotificationServiceImpl implements INotificationService {
                                 savedNoti.getId(),
                                 track.getId(),
                                 track.getName(),
-                                null, // albumId = null vì đây là track mới
-                                null, // albumName = null
+                                null,
+                                null,
                                 artist.getName(),
                                 savedNoti.getContent(),
                                 savedNoti.getIsRead(),
