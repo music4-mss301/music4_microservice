@@ -26,5 +26,6 @@ public interface CategoryRepository extends JpaRepository<Category, Integer> {
             "GROUP BY c.name",
             nativeQuery = true)
     List<Map<String, Object>> getCategoryStats();
+    boolean existsByNameIgnoreCase(String name);
 }
 
