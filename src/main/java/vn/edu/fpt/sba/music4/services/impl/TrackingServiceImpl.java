@@ -107,7 +107,7 @@ public class TrackingServiceImpl implements ITrackingService{
             Track track = history.getTrack();
             List<TrackArtistInfo> artists = List.of();
 
-        // Gọi Repo bằng ID của bài hát
+            // Gọi Repo bằng ID của bài hát
             List<TrackArtist> dbTrackArtists = trackArtistRepository.findByTrackIdWithArtist(track.getId());
 
             if (dbTrackArtists != null && !dbTrackArtists.isEmpty()) {
@@ -121,7 +121,7 @@ public class TrackingServiceImpl implements ITrackingService{
             return new TrackResponseDTO(
                     track.getId(),
                     track.getName(),
-                    track.getAlbum() != null ? track.getAlbum().getName() : "Song",
+                    track.getAlbum() != null ? track.getAlbum().getName() : "Single",
                     track.getImg(),
                     track.getDuration(),
                     track.getFilePath(),

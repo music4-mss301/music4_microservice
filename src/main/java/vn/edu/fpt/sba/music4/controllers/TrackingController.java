@@ -65,7 +65,7 @@ public class TrackingController {
             @ApiResponse(responseCode = "404", description = "Không tìm thấy thông tin người dùng")
     })
     public ResponseEntity<Page<TrackResponseDTO>> getHistory(@PathVariable Integer userId,
-                                                             @PageableDefault(size = 20, page = 0) Pageable pageable) {
+                                                             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         return ResponseEntity.ok(trackingService.getListeningHistory(userId, pageable));
     }
 
