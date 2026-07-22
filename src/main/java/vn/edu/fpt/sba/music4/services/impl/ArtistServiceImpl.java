@@ -17,6 +17,7 @@ import vn.edu.fpt.sba.music4.dtos.response.UserResponseDTO;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.entities.Track;
+import vn.edu.fpt.sba.music4.entities.VerificationToken;
 import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
 import vn.edu.fpt.sba.music4.repositories.FollowRepository;
 import vn.edu.fpt.sba.music4.repositories.UserRepository;
@@ -27,6 +28,7 @@ import vn.edu.fpt.sba.music4.util.AWSUtil;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +47,9 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
     private final PlaylistRepository playlistRepository;
     private final PlaylistTrackRepository playlistTrackRepository;
     private final AlbumRepository albumRepository;
+    private final VerificationTokenRepository verificationTokenRepository;
+    private final EmailService emailService;
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         return this.artistRepository.findByUserName(username)
@@ -124,14 +129,21 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
         String hashedPassword = BCrypt.hashpw(registrationRequest.password(), BCrypt.gensalt());
 
         artist.setName(registrationRequest.name() == null ? "Unknown Artist" : registrationRequest.name());
-
         artist.setEmail(registrationRequest.email());
         artist.setPassword(hashedPassword);
         artist.setUserName(registrationRequest.username());
         artist.setTrackTotal(0);
         artist.setAlbumTotal(0);
+        artist.setEnabled(false); // Mặc định chưa xác thực
 
-        return artistRepository.save(artist);
+        Artist savedArtist = artistRepository.save(artist);
+
+        // Tạo Token và gửi email xác thực
+        String token = UUID.randomUUID().toString();
+        verificationTokenRepository.save(new VerificationToken(token, savedArtist.getEmail(), "ARTIST"));
+        emailService.sendVerificationEmail(savedArtist.getEmail(), token);
+
+        return savedArtist;
     }
 
     @Override
@@ -258,6 +270,7 @@ public class ArtistServiceImpl implements IArtistService, UserDetailsService {
 
         artist.setIsDeleted(true);
         artist.setImg(null);
+        artist.setCover(null);
         artist.setTrackTotal(0);
         artist.setAlbumTotal(0);
         aWSUtil.deleteFile(artist.getImg());

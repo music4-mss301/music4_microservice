@@ -38,13 +38,15 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     // History pagination
     Page<History> findByUserId(Integer userId, Pageable pageable);
 
-    @Query("SELECT h FROM History h WHERE h.id IN " +
-            "(SELECT MAX(h2.id) FROM History h2 WHERE h2.user.id = :userId GROUP BY h2.track.id) " +
-            "ORDER BY h.listenedAt DESC")
+    @Query(value = "SELECT h FROM History h WHERE h.id IN " +
+                    "(SELECT MAX(h2.id) FROM History h2 WHERE h2.user.id = :userId GROUP BY h2.track.id) " +
+                    "ORDER BY h.listenedAt DESC",
+            countQuery = "SELECT COUNT(DISTINCT h2.track.id) FROM History h2 WHERE h2.user.id = :userId"
+    )
     Page<History> findDistinctHistoryByUserId(@Param("userId") Integer userId, Pageable pageable);
 
     @Modifying
-    @Query("DELETE FROM History h WHERE h.playbackPosition < 5 OR h.listenedAt < :cutoffDate")
+    @Query("DELETE FROM History h WHERE h.playbackPosition < 10 OR h.listenedAt < :cutoffDate")
     void cleanupGarbageHistory(@Param("cutoffDate") LocalDateTime cutoffDate);
 
     @Query(value = "SELECT CAST(h.listened_at AS DATE) AS day, COUNT_BIG(h.id) AS views " +

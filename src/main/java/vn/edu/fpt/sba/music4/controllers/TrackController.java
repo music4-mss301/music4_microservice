@@ -210,8 +210,9 @@ public class TrackController {
         // 1. Lấy thông tin bài hát từ DB
         TrackDetailResponseDTO track = trackService.getTrackById(id);
 
-        // 2. Ưu tiên lấy previewPath (Mặc dù hiện tại nó đang giống filePath, nhưng chuẩn logic là vậy)
-        String rawPath = track.previewPath();
+        String rawPath = (track.previewPath() != null && !track.previewPath().isEmpty())
+                ? track.previewPath()
+                : track.filePath();
 
         if (rawPath == null || rawPath.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();

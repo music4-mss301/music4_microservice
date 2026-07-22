@@ -24,6 +24,7 @@ public class RefreshTokenServiceImpl implements IRefreshTokenService {
 
 
     @Override
+    @Transactional
     public RefreshToken createRefreshToken(String username, String source) {
         refreshTokenRepository.deleteByUsernameAndSource(username, source);
 

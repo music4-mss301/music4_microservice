@@ -1,5 +1,7 @@
 package vn.edu.fpt.sba.music4.controllers;
 
+import io.github.bucket4j.Bucket;
+import io.github.bucket4j.ConsumptionProbe;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -7,11 +9,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -24,11 +26,11 @@ import vn.edu.fpt.sba.music4.dtos.response.TokenResponse;
 import vn.edu.fpt.sba.music4.entities.Artist;
 import vn.edu.fpt.sba.music4.entities.RefreshToken;
 import vn.edu.fpt.sba.music4.services.IPasswordResetTokenService;
-import vn.edu.fpt.sba.music4.services.impl.ArtistServiceImpl;
-import vn.edu.fpt.sba.music4.services.impl.RefreshTokenServiceImpl;
+import vn.edu.fpt.sba.music4.services.IRefreshTokenService;
+import vn.edu.fpt.sba.music4.services.impl.*;
 import vn.edu.fpt.sba.music4.util.JwtUtil;
-import vn.edu.fpt.sba.music4.services.impl.CustomUserDetailsServiceImpl;
-import vn.edu.fpt.sba.music4.services.impl.UserServiceImpl;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -40,8 +42,9 @@ public class AuthController {
     private final CustomUserDetailsServiceImpl userDetailsService;
     private final UserServiceImpl userService;
     private final ArtistServiceImpl artistService;
-    private final RefreshTokenServiceImpl refreshTokenService;
+    private final IRefreshTokenService refreshTokenService;
     private final IPasswordResetTokenService passwordResetTokenService;
+    private final RateLimitService rateLimitService;
 
     @PostMapping("/login")
     @Operation(summary = "User Login", description = "Authenticates a user with username and password. Returns JWT access token and refresh token.")
@@ -57,8 +60,11 @@ public class AuthController {
         String source = "";
         String role = user.getAuthorities().iterator().next().getAuthority();
 
-        if (user instanceof Artist) {
-            Artist artist = (Artist) user;
+        if(!user.isEnabled()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new AuthResponse("Tài khoản chưa được xác thực! Vui lòng kiểm tra email để xác thực tài khoản."));
+        }
+
+        if (user instanceof Artist artist) {
             id = artist.getId();
             name = artist.getName();
             img = artist.getImg();
@@ -79,23 +85,38 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh Access Token", description = "Generates a new access token and refresh token using a valid refresh token. Implements token rotation for security.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Token refresh successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))), @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))), @ApiResponse(responseCode = "500", description = "Internal server error during token refresh", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))})
-    public ResponseEntity<?> refresh(@RequestBody RefreshRequest req) {
-        RefreshToken rt = refreshTokenService.verifyRefreshToken(req.refreshToken());
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token refresh successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error during token refresh", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))
+    })
+    public ResponseEntity<?> refresh(
+            @RequestBody(required = false) RefreshRequest req,
+            @CookieValue(name = "refresh_token", required = false) String cookieToken,
+            HttpServletResponse response) {
+
+        String rawToken = (req != null && req.refreshToken() != null && !req.refreshToken().isBlank())
+                ? req.refreshToken()
+                : cookieToken;
+
+        if (rawToken == null || rawToken.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse("Refresh token is missing."));
+        }
+
+        RefreshToken rt = refreshTokenService.verifyRefreshToken(rawToken);
         UserDetails user = userDetailsService.loadUserByUsername(rt.getUsername());
 
         Integer id = null;
         String img = null;
-        String name  = null;
+        String name = null;
         String role = user.getAuthorities().iterator().next().getAuthority();
 
-        if (user instanceof Artist) {
-            Artist artist = (Artist) user;
+        if (user instanceof Artist artist) {
             id = artist.getId();
             name = artist.getName();
             img = artist.getImg();
-        } else if (user instanceof vn.edu.fpt.sba.music4.entities.User) {
-            vn.edu.fpt.sba.music4.entities.User u = (vn.edu.fpt.sba.music4.entities.User) user;
+        } else if (user instanceof vn.edu.fpt.sba.music4.entities.User u) {
             id = u.getId();
             name = u.getName();
             img = u.getImg();
@@ -103,6 +124,17 @@ public class AuthController {
 
         String newAccess = jwtUtil.generateToken(user);
         RefreshToken newRt = refreshTokenService.rotate(rt);
+
+        if (cookieToken != null && cookieToken.equals(rawToken)) {
+            ResponseCookie newCookie = ResponseCookie.from("refresh_token", newRt.getToken())
+                    .httpOnly(true)
+                    .secure(false) // Đổi thành true khi lên môi trường HTTPS
+                    .path("/")
+                    .maxAge(7 * 24 * 60 * 60)
+                    .sameSite("Lax")
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, newCookie.toString());
+        }
 
         return ResponseEntity.ok(new TokenResponse(newAccess, newRt.getToken(), id, user.getUsername(), name, img, role));
     }
@@ -153,8 +185,27 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        passwordResetTokenService.initiatePasswordReset(request.email());
+    public ResponseEntity<AuthResponse> forgotPassword(@Valid @RequestBody ForgotPasswordRequest requestDto, HttpServletRequest request) {
+        String email = requestDto.email().toLowerCase().trim();
+        String clientIp = getClientIp(request);
+
+        Bucket ipBucket = rateLimitService.resolveIpBucket(clientIp);
+        if (!ipBucket.tryConsume(1)) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body( new AuthResponse("Quá nhiều yêu cầu từ IP của bạn. Vui lòng thử lại sau 15 phút."));
+        }
+
+        Bucket emailBucket = rateLimitService.resolveEmailBucket(email);
+        ConsumptionProbe probe = emailBucket.tryConsumeAndReturnRemaining(1);
+
+        if (!probe.isConsumed()) {
+            long waitForRefillSec = (long) Math.ceil(probe.getNanosToWaitForRefill() / 1_000_000_000.0);
+
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(new AuthResponse("Vui lòng đợi " + waitForRefillSec + " giây trước khi gửi lại yêu cầu."));
+        }
+
+        passwordResetTokenService.initiatePasswordReset(email);
         return ResponseEntity.ok(new AuthResponse("Reset token is sent."));
     }
 
@@ -169,5 +220,13 @@ public class AuthController {
     @ApiResponse(responseCode = "200", description = "Service is healthy", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))
     public ResponseEntity<AuthResponse> test() {
         return ResponseEntity.ok(new AuthResponse("test"));
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader == null || xfHeader.isEmpty()) {
+            return request.getRemoteAddr();
+        }
+        return xfHeader.split(",")[0].trim();
     }
 }
