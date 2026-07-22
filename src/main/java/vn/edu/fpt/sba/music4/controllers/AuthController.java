@@ -10,11 +10,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -86,23 +85,38 @@ public class AuthController {
 
     @PostMapping("/refresh")
     @Operation(summary = "Refresh Access Token", description = "Generates a new access token and refresh token using a valid refresh token. Implements token rotation for security.")
-    @ApiResponses(value = {@ApiResponse(responseCode = "200", description = "Token refresh successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))), @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))), @ApiResponse(responseCode = "500", description = "Internal server error during token refresh", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))})
-    public ResponseEntity<?> refresh(@RequestBody RefreshRequest req) {
-        RefreshToken rt = refreshTokenService.verifyRefreshToken(req.refreshToken());
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token refresh successful", content = @Content(mediaType = "application/json", schema = @Schema(implementation = TokenResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class))),
+            @ApiResponse(responseCode = "500", description = "Internal server error during token refresh", content = @Content(mediaType = "application/json", schema = @Schema(implementation = AuthResponse.class)))
+    })
+    public ResponseEntity<?> refresh(
+            @RequestBody(required = false) RefreshRequest req,
+            @CookieValue(name = "refresh_token", required = false) String cookieToken,
+            HttpServletResponse response) {
+
+        String rawToken = (req != null && req.refreshToken() != null && !req.refreshToken().isBlank())
+                ? req.refreshToken()
+                : cookieToken;
+
+        if (rawToken == null || rawToken.isBlank()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AuthResponse("Refresh token is missing."));
+        }
+
+        RefreshToken rt = refreshTokenService.verifyRefreshToken(rawToken);
         UserDetails user = userDetailsService.loadUserByUsername(rt.getUsername());
 
         Integer id = null;
         String img = null;
-        String name  = null;
+        String name = null;
         String role = user.getAuthorities().iterator().next().getAuthority();
 
-        if (user instanceof Artist) {
-            Artist artist = (Artist) user;
+        if (user instanceof Artist artist) {
             id = artist.getId();
             name = artist.getName();
             img = artist.getImg();
-        } else if (user instanceof vn.edu.fpt.sba.music4.entities.User) {
-            vn.edu.fpt.sba.music4.entities.User u = (vn.edu.fpt.sba.music4.entities.User) user;
+        } else if (user instanceof vn.edu.fpt.sba.music4.entities.User u) {
             id = u.getId();
             name = u.getName();
             img = u.getImg();
@@ -110,6 +124,17 @@ public class AuthController {
 
         String newAccess = jwtUtil.generateToken(user);
         RefreshToken newRt = refreshTokenService.rotate(rt);
+
+        if (cookieToken != null && cookieToken.equals(rawToken)) {
+            ResponseCookie newCookie = ResponseCookie.from("refresh_token", newRt.getToken())
+                    .httpOnly(true)
+                    .secure(false) // Đổi thành true khi lên môi trường HTTPS
+                    .path("/")
+                    .maxAge(7 * 24 * 60 * 60)
+                    .sameSite("Lax")
+                    .build();
+            response.addHeader(HttpHeaders.SET_COOKIE, newCookie.toString());
+        }
 
         return ResponseEntity.ok(new TokenResponse(newAccess, newRt.getToken(), id, user.getUsername(), name, img, role));
     }
