@@ -1,5 +1,7 @@
 package vn.edu.fpt.sba.music4.filters;
 
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,29 +42,54 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String header = req.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {
-            chain.doFilter(req, res); return;
+            chain.doFilter(req, res);
+            return;
         }
 
-        String token    = header.substring(7);
-        String username = jwtUtil.extractUsername(token);
-        String source   = jwtUtil.extractSource(token);
+        String token = header.substring(7);
+        try {
+            String username = jwtUtil.extractUsername(token);
+            String source = jwtUtil.extractSource(token);
 
 
-        if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+            if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-            UserDetails user = "artist".equals(source)
-                    ? artistDetailsService.loadUserByUsername(username)
-                    : userDetailsService.loadUserByUsername(username);
-            System.out.println("Load Ok: " + user.getUsername() + " - " + user.getAuthorities());
+                UserDetails user = "artist".equals(source)
+                        ? artistDetailsService.loadUserByUsername(username)
+                        : userDetailsService.loadUserByUsername(username);
+                System.out.println("Load Ok: " + user.getUsername() + " - " + user.getAuthorities());
 
-            if (jwtUtil.isValid(token, user)) {
-                var auth = new UsernamePasswordAuthenticationToken(
-                        user, null, user.getAuthorities());
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                if (jwtUtil.isValid(token, user)) {
+                    var auth = new UsernamePasswordAuthenticationToken(
+                            user, null, user.getAuthorities());
+                    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             }
-        }
+        } catch (ExpiredJwtException e) {
+            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            res.setContentType("application/json");
+            res.getWriter().write("""
+                    {
+                      "status":401,
+                      "code":"ACCESS_TOKEN_EXPIRED",
+                      "message":"Access token expired"
+                    }
+                    """);
+            return;
 
+        } catch (MalformedJwtException | IllegalArgumentException e) {
+            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            res.setContentType("application/json");
+            res.getWriter().write("""
+                    {
+                      "status":401,
+                      "code":"INVALID_ACCESS_TOKEN",
+                      "message":"Invalid access token"
+                    }
+                    """);
+            return;
+        }
         chain.doFilter(req, res);
     }
 }
