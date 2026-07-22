@@ -44,42 +44,37 @@ public class TrackingServiceImpl implements ITrackingService{
             Track track = trackRepository.findById(trackId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát"));
 
-            boolean isCreator = false;
-            boolean isAdmin = false;
+            boolean isArtistOrAdmin = false;
+            String roleLog = "N/A";
 
-            // Check quyền Admin
+            // check ADMIN và ARTIST thì ko cộng view
             if (userId != null) {
                 User currentUser = userRepository.findById(userId).orElse(null);
-                if (currentUser != null && "ADMIN".equalsIgnoreCase(currentUser.getRole())) {
-                    isAdmin = true;
+                if (currentUser != null) {
+                    String role = currentUser.getRole();
+                    roleLog = role;
+                    if ("ADMIN".equalsIgnoreCase(role) || "ARTIST".equalsIgnoreCase(role)) {
+                        isArtistOrAdmin = true;
+                    }
                 }
             }
 
-            // Check quyền Tác giả
-            if (currentUsername != null && !currentUsername.equals("anonymousUser")) {
-                isCreator = track.getTrackArtists().stream()
-                        .anyMatch(ta -> ta.getArtist().getUsername().equals(currentUsername));
-            }
-
-            // Chỉ cộng View + ghi History khi KHÔNG phải chính chủ / admin
-            if (!isCreator && !isAdmin) {
+            // LISTENER thì được cộng view
+            if (!isArtistOrAdmin) {
                 trackRepository.incrementViewCount(trackId);
                 log.info("[SUCCESS] Đã cộng 1 view cho bài hát {}", trackId);
 
-                // Gộp luôn việc ghi History vào đây, dùng chung điều kiện anti-cheat
-                if (userId != null) {
-                    User user = userRepository.findById(userId).orElse(null);
-                    if (user != null) {
-                        History history = new History();
-                        history.setUser(user);
-                        history.setTrack(track);
-                        history.setListenedAt(LocalDateTime.now());
-                        historyRepository.save(history);
-                    }
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null) {
+                    History history = new History();
+                    history.setUser(user);
+                    history.setTrack(track);
+                    history.setListenedAt(LocalDateTime.now());
+                    historyRepository.save(history);
                 }
             } else {
-                log.info("[ANTI-CHEAT] BỎ QUA CỘNG VIEW & HISTORY: User {} (Admin: {}, Tác giả: {})",
-                        currentUsername, isAdmin, isCreator);
+                log.info("[ANTI-CHEAT] BỎ QUA CỘNG VIEW & HISTORY: User {} (Role: {})",
+                        currentUsername, roleLog);
             }
 
         } catch (Exception e) {
