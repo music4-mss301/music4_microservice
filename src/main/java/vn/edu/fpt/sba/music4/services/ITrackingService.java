@@ -17,6 +17,4 @@ public interface ITrackingService {
     Page<TrackResponseDTO> getListeningHistory(Integer userId, Pageable pageable);
 
     void cleanupHistory();
-
-    void saveHistory(TrackPlayRequest request);
 }

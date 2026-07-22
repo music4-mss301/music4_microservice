@@ -47,7 +47,7 @@ public class TrackingServiceImpl implements ITrackingService{
             boolean isCreator = false;
             boolean isAdmin = false;
 
-            // 1. Check quyền Admin
+            // Check quyền Admin
             if (userId != null) {
                 User currentUser = userRepository.findById(userId).orElse(null);
                 if (currentUser != null && "ADMIN".equalsIgnoreCase(currentUser.getRole())) {
@@ -55,18 +55,30 @@ public class TrackingServiceImpl implements ITrackingService{
                 }
             }
 
-            // 2. Check quyền Tác giả
+            // Check quyền Tác giả
             if (currentUsername != null && !currentUsername.equals("anonymousUser")) {
                 isCreator = track.getTrackArtists().stream()
                         .anyMatch(ta -> ta.getArtist().getUsername().equals(currentUsername));
             }
 
-            // 3. Tiến hành cộng View
+            // Chỉ cộng View + ghi History khi KHÔNG phải chính chủ / admin
             if (!isCreator && !isAdmin) {
                 trackRepository.incrementViewCount(trackId);
                 log.info("[SUCCESS] Đã cộng 1 view cho bài hát {}", trackId);
+
+                // Gộp luôn việc ghi History vào đây, dùng chung điều kiện anti-cheat
+                if (userId != null) {
+                    User user = userRepository.findById(userId).orElse(null);
+                    if (user != null) {
+                        History history = new History();
+                        history.setUser(user);
+                        history.setTrack(track);
+                        history.setListenedAt(LocalDateTime.now());
+                        historyRepository.save(history);
+                    }
+                }
             } else {
-                log.info("[ANTI-CHEAT] BỎ QUA CỘNG VIEW: User {} (Admin: {}, Tác giả: {})",
+                log.info("[ANTI-CHEAT] BỎ QUA CỘNG VIEW & HISTORY: User {} (Admin: {}, Tác giả: {})",
                         currentUsername, isAdmin, isCreator);
             }
 
@@ -145,25 +157,4 @@ public class TrackingServiceImpl implements ITrackingService{
             log.error("[CLEANUP] Lỗi khi dọn dẹp lịch sử rác: {}", e.getMessage());
         }
     }
-
-    @Override
-    public void saveHistory(TrackPlayRequest request) {
-        // Tìm User
-        User user = userRepository.findById(request.userId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy User với ID: " + request.userId()));
-
-        // Tìm Track
-        Track track = trackRepository.findById(request.trackId())
-                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy Track với ID: " + request.trackId()));
-
-        // Tạo bản ghi lịch sử mới
-        History history = new History();
-        history.setUser(user);
-        history.setTrack(track);
-        history.setListenedAt(LocalDateTime.now());
-
-        // Lưu vào Database
-        historyRepository.save(history);
-    }
-
 }
