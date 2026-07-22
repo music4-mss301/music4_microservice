@@ -60,15 +60,19 @@ public class TrackingController {
     @PostMapping("/history")
     public ResponseEntity<?> saveHistory(@RequestBody @Valid TrackPlayRequest request) {
         try {
-            String currentUsername = SecurityContextHolder.getContext()
-                    .getAuthentication() != null
-                    ? SecurityContextHolder.getContext().getAuthentication().getName()
-                    : "anonymousUser";
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+            String currentUsername = (auth != null) ? auth.getName() : "anonymousUser";
+
+            String currentRole = (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty())
+                    ? auth.getAuthorities().iterator().next().getAuthority()
+                    : null;
 
             trackingService.recordPlayHistory(
                     request.trackId(),
                     request.userId(),
-                    currentUsername
+                    currentUsername,
+                    currentRole
             );
             return ResponseEntity.ok("Lưu lịch sử nghe nhạc thành công!");
         } catch (Exception e) {

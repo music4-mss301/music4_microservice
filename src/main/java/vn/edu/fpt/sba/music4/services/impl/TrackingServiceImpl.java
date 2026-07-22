@@ -36,41 +36,61 @@ public class TrackingServiceImpl implements ITrackingService{
     private final UserRepository userRepository;
     private final TrackArtistRepository trackArtistRepository;
 
+    // Cửa sổ chống trùng lượt nghe (giây), tính động theo thời lượng bài hát:
+    // min(60s, duration * 0.7) —    bài ngắn thì cửa sổ ngắn tương ứng, tránh việc
+    // 1 bài 20s vẫn bị "khóa" chống trùng tới 2 phút như cũ.
+    private static final long MAX_DUPLICATE_VIEW_WINDOW_SECONDS = 60;
+    private static final double DUPLICATE_VIEW_WINDOW_RATIO = 0.7;
+    private static final long DEFAULT_DUPLICATE_VIEW_WINDOW_SECONDS = 30; // fallback khi duration null/invalid
+
+    private long resolveDuplicateViewWindowSeconds(Track track) {
+        Integer duration = track.getDuration();
+        if (duration == null || duration <= 0) {
+            return DEFAULT_DUPLICATE_VIEW_WINDOW_SECONDS;
+        }
+        double windowSeconds = duration * DUPLICATE_VIEW_WINDOW_RATIO;
+        return Math.min(MAX_DUPLICATE_VIEW_WINDOW_SECONDS, (long) windowSeconds);
+    }
+
     @Override
     @Async("trackingExecutor")
     @Transactional
-    public void recordPlayHistory(Integer trackId, Integer userId, String currentUsername) {
+    public void recordPlayHistory(Integer trackId, Integer userId, String currentUsername, String currentRole) {
         try {
             Track track = trackRepository.findById(trackId)
                     .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát"));
 
-            boolean isArtistOrAdmin = false;
-            String roleLog = "N/A";
+            boolean isArtistOrAdmin = currentRole != null
+                    && (currentRole.toUpperCase().contains("ARTIST")
+                    || currentRole.toUpperCase().contains("ADMIN"));
+            String roleLog = currentRole != null ? currentRole : "N/A";
 
-            // check ADMIN và ARTIST thì ko cộng view
-            if (userId != null) {
-                User currentUser = userRepository.findById(userId).orElse(null);
-                if (currentUser != null) {
-                    String role = currentUser.getRole();
-                    roleLog = role;
-                    if ("ADMIN".equalsIgnoreCase(role) || "ARTIST".equalsIgnoreCase(role)) {
-                        isArtistOrAdmin = true;
-                    }
-                }
-            }
-
-            // LISTENER thì được cộng view
             if (!isArtistOrAdmin) {
-                trackRepository.incrementViewCount(trackId);
-                log.info("[SUCCESS] Đã cộng 1 view cho bài hát {}", trackId);
+                long windowSeconds = resolveDuplicateViewWindowSeconds(track);
 
-                User user = userRepository.findById(userId).orElse(null);
-                if (user != null) {
-                    History history = new History();
-                    history.setUser(user);
-                    history.setTrack(track);
-                    history.setListenedAt(LocalDateTime.now());
-                    historyRepository.save(history);
+                Optional<History> lastHistory = historyRepository
+                        .findTopByUserIdAndTrackIdOrderByListenedAtDesc(userId, trackId);
+
+                boolean countedRecently = lastHistory.isPresent()
+                        && lastHistory.get().getListenedAt() != null
+                        && lastHistory.get().getListenedAt()
+                        .isAfter(LocalDateTime.now().minusSeconds(windowSeconds));
+
+                if (countedRecently) {
+                    log.info("[ANTI-DUP] Bỏ qua cộng view trùng lặp cho User {} - Track {} (đã ghi nhận cách đây < {}s, duration={}s)",
+                            userId, trackId, windowSeconds, track.getDuration());
+                } else {
+                    trackRepository.incrementViewCount(trackId);
+                    log.info("[SUCCESS] Đã cộng 1 view cho bài hát {}", trackId);
+
+                    User user = userRepository.findById(userId).orElse(null);
+                    if (user != null) {
+                        History history = new History();
+                        history.setUser(user);
+                        history.setTrack(track);
+                        history.setListenedAt(LocalDateTime.now());
+                        historyRepository.save(history);
+                    }
                 }
             } else {
                 log.info("[ANTI-CHEAT] BỎ QUA CỘNG VIEW & HISTORY: User {} (Role: {})",
