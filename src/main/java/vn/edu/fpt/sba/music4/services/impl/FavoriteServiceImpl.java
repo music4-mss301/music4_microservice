@@ -15,6 +15,7 @@ import vn.edu.fpt.sba.music4.services.IFavoriteService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -58,15 +59,21 @@ public class FavoriteServiceImpl implements IFavoriteService {
         User currentUser = getAuthenticatedUser();
 
         List<Favorite> favorites = favoriteRepository.findByUserId(currentUser.getId());
+
         return favorites.stream()
                 .map(f -> new FavoriteResponseDTO(
                         f.getId(),
                         f.getTrack().getId(),
                         f.getTrack().getName(),
+
+                        f.getTrack().getTrackArtists()
+                                .stream()
+                                .map(ta -> ta.getArtist().getName())
+                                .collect(Collectors.joining(", ")),
+
                         f.getTrack().getImg(),
                         f.getLikedAt()
                 ))
                 .toList();
     }
-
 }
