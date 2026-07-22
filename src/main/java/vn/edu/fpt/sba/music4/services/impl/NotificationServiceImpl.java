@@ -10,7 +10,7 @@ import vn.edu.fpt.sba.music4.entities.Notification;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.repositories.FollowRepository;
 import vn.edu.fpt.sba.music4.repositories.NotificationRepository;
-import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository; // 🟢 Nhớ import cái này nha bồ
+import vn.edu.fpt.sba.music4.repositories.TrackArtistRepository;
 import vn.edu.fpt.sba.music4.services.INotificationService;
 
 import java.io.IOException;
@@ -25,7 +25,6 @@ public class NotificationServiceImpl implements INotificationService {
 
     private final NotificationRepository notificationRepository;
     private final FollowRepository followRepository;
-    // 🟢 THÊM "final" Ở ĐÂY để @RequiredArgsConstructor tự động Inject vào constructor:
     private final TrackArtistRepository trackArtistRepository;
 
     private static final Map<Integer, SseEmitter> emitters = new ConcurrentHashMap<>();
@@ -51,15 +50,53 @@ public class NotificationServiceImpl implements INotificationService {
     @Transactional(readOnly = true)
     public List<NotificationResponseDTO> getMyNotifications(Integer userId) {
         List<Notification> notifications = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId);
-        return notifications.stream().map(n -> new NotificationResponseDTO(
-                n.getId(),
-                n.getTrack() != null ? n.getTrack().getId() : null,
-                n.getTrack() != null ? n.getTrack().getName() : null,
-                n.getArtist() != null ? n.getArtist().getName() : null,
-                n.getContent(),
-                n.getIsRead(),
-                n.getCreatedAt()
-        )).toList();
+        return notifications.stream().map(n -> {
+            Integer trackId = null;
+            String trackName = null;
+            Integer albumId = null;
+            String albumName = null;
+            String artistName = null;
+
+            try {
+                if (n.getTrack() != null) {
+                    trackId = n.getTrack().getId();
+                    trackName = n.getTrack().getName();
+                }
+            } catch (Exception e) {
+                trackId = null;
+                trackName = "Bài hát không còn tồn tại";
+            }
+
+            try {
+                if (n.getAlbum() != null) {
+                    albumId = n.getAlbum().getId();
+                    albumName = n.getAlbum().getName();
+                }
+            } catch (Exception e) {
+                albumId = null;
+                albumName = "Album không còn tồn tại";
+            }
+
+            try {
+                if (n.getArtist() != null) {
+                    artistName = n.getArtist().getName();
+                }
+            } catch (Exception e) {
+                artistName = "Nghệ sĩ";
+            }
+
+            return new NotificationResponseDTO(
+                    n.getId(),
+                    trackId,
+                    trackName,
+                    albumId,
+                    albumName,
+                    artistName,
+                    n.getContent(),
+                    n.getIsRead(),
+                    n.getCreatedAt()
+            );
+        }).toList();
     }
 
     @Override
@@ -73,47 +110,56 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     @Transactional
+    public void saveAndSend(Notification notification) {
+        Notification savedNoti = notificationRepository.save(notification);
+        Integer targetUserId = null;
+        if (savedNoti.getUser() != null) {
+            targetUserId = savedNoti.getUser().getId();
+        } else if (savedNoti.getArtist() != null) {
+            targetUserId = savedNoti.getArtist().getId();
+        }
+
+        if (targetUserId != null && emitters.containsKey(targetUserId)) {
+            try {
+                NotificationResponseDTO responseDTO = new NotificationResponseDTO(
+                        savedNoti.getId(),
+                        savedNoti.getTrack() != null ? savedNoti.getTrack().getId() : null,
+                        savedNoti.getTrack() != null ? savedNoti.getTrack().getName() : null,
+                        savedNoti.getAlbum() != null ? savedNoti.getAlbum().getId() : null,
+                        savedNoti.getAlbum() != null ? savedNoti.getAlbum().getName() : null,
+                        savedNoti.getArtist() != null ? savedNoti.getArtist().getName() : null,
+                        savedNoti.getContent(),
+                        savedNoti.getIsRead(),
+                        savedNoti.getCreatedAt()
+                );
+
+                emitters.get(targetUserId).send(
+                        SseEmitter.event()
+                                .name("NOTIFICATION")
+                                .data(responseDTO)
+                );
+            } catch (IOException e) {
+                emitters.remove(targetUserId);
+            }
+        }
+    }
+
+    @Override
+    @Transactional
     public void sendNewTrackNotification(Track track) {
-        System.out.println("=== [TEST NOTI] 1. Hàm sendNewTrackNotification đã chạy ===");
-        if (track == null) {
-            System.out.println("=== [TEST NOTI] LỖI: Đối tượng Track truyền vào bị NULL! ===");
-            return;
-        }
-        System.out.println("=== [TEST NOTI] Tên bài hát: " + track.getName() + " | ID: " + track.getId());
+        if (track == null) return;
 
-        // 🟢 Đã hết lỗi đỏ vì đã có Repo bốc trực tiếp từ DB
         List<vn.edu.fpt.sba.music4.entities.TrackArtist> trackArtists = trackArtistRepository.findByTrackId(track.getId());
-
-        if (trackArtists == null) {
-            System.out.println("=== [TEST NOTI] LỖI: Danh sách lấy từ trackArtistRepository bị NULL! ===");
-            return;
-        }
-        if (trackArtists.isEmpty()) {
-            System.out.println("=== [TEST NOTI] LỖI: Danh sách lấy từ trackArtistRepository bị RỖNG! ===");
-            return;
-        }
-
-        System.out.println("=== [TEST NOTI] 2. Số lượng nghệ sĩ tìm thấy từ DB: " + trackArtists.size());
+        if (trackArtists == null || trackArtists.isEmpty()) return;
 
         for (vn.edu.fpt.sba.music4.entities.TrackArtist trackArtist : trackArtists) {
             vn.edu.fpt.sba.music4.entities.Artist artist = trackArtist.getArtist();
-            if (artist == null) {
-                System.out.println("=== [TEST NOTI] LỖI: Đối tượng Artist bên trong TrackArtist bị NULL! ===");
-                continue;
-            }
-
-            System.out.println("=== [TEST NOTI] 3. Đang xét Nghệ sĩ: " + artist.getName() + " | ID: " + artist.getId());
+            if (artist == null) continue;
 
             List<Follow> follows = followRepository.findByArtistId(artist.getId());
-            if (follows == null || follows.isEmpty()) {
-                System.out.println("=== [TEST NOTI] LỖI: Không tìm thấy bất kỳ ai bấm Follow nghệ sĩ này trong DB! ===");
-                continue;
-            }
-            System.out.println("=== [TEST NOTI] 4. Số lượng người hâm mộ sẽ nhận thông báo: " + follows.size());
+            if (follows == null || follows.isEmpty()) continue;
 
             for (Follow follow : follows) {
-                System.out.println("=== [TEST NOTI] Chuẩn bị lưu thông báo cho User ID: " + follow.getUser().getId());
-
                 Notification notification = new Notification();
                 notification.setUser(follow.getUser());
                 notification.setArtist(artist);
@@ -124,19 +170,15 @@ public class NotificationServiceImpl implements INotificationService {
 
                 Notification savedNoti = notificationRepository.save(notification);
 
-                System.out.println("=== [TEST NOTI] 5. Đã lưu DB thành công! ID thông báo: " + savedNoti.getId());
-
                 Integer targetUserId = follow.getUser().getId();
-                boolean isOnline = emitters.containsKey(targetUserId);
-                System.out.println("=== [TEST NOTI] Kiểm tra trạng thái online của User ID " + targetUserId + ": " + isOnline);
-
-                if (isOnline) {
+                if (emitters.containsKey(targetUserId)) {
                     try {
-                        // 🟢 THÊM ĐOẠN NÀY: Đưa dữ liệu sạch dạng DTO qua SSE gửi tới React để chuông nhảy số luôn
                         NotificationResponseDTO responseDTO = new NotificationResponseDTO(
                                 savedNoti.getId(),
                                 track.getId(),
                                 track.getName(),
+                                null, // albumId = null vì đây là track mới
+                                null, // albumName = null
                                 artist.getName(),
                                 savedNoti.getContent(),
                                 savedNoti.getIsRead(),
@@ -148,9 +190,7 @@ public class NotificationServiceImpl implements INotificationService {
                                         .name("NEW_TRACK")
                                         .data(responseDTO)
                         );
-                        System.out.println("=== [TEST NOTI] Đã gọi lệnh emitter.send() gửi tới cụm React thành công! ===");
                     } catch (IOException e) {
-                        System.out.println("=== [TEST NOTI] LỖI khi push real-time cho user " + targetUserId + ": " + e.getMessage());
                         emitters.remove(targetUserId);
                     }
                 }
@@ -160,8 +200,9 @@ public class NotificationServiceImpl implements INotificationService {
 
     @Override
     public void createNewTrackNotification(Integer artistId, String artistName, Integer trackId, String trackName) {
-        // Để trống vì logic đã gộp hết lên hàm trên sạch sẽ rồi
+        // Bỏ trống
     }
+
     @Override
     @Transactional
     public void deleteNotification(Integer notificationId) {

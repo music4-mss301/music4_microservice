@@ -1,6 +1,5 @@
 package vn.edu.fpt.sba.music4.services.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -8,27 +7,40 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.sba.music4.dtos.response.*;
 import vn.edu.fpt.sba.music4.entities.Album;
 import vn.edu.fpt.sba.music4.entities.Artist;
+import vn.edu.fpt.sba.music4.entities.Follow;
+import vn.edu.fpt.sba.music4.entities.Notification;
 import vn.edu.fpt.sba.music4.entities.Track;
 import vn.edu.fpt.sba.music4.exceptions.BusinessException;
-import vn.edu.fpt.sba.music4.repositories.AlbumRepository;
-import vn.edu.fpt.sba.music4.repositories.ArtistRepository;
-import vn.edu.fpt.sba.music4.repositories.TrackRepository;
+import vn.edu.fpt.sba.music4.repositories.*;
 import vn.edu.fpt.sba.music4.services.IAlbumService;
+import vn.edu.fpt.sba.music4.services.INotificationService;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
 public class AlbumServiceImpl implements IAlbumService {
-    private AlbumRepository albumRepository;
-    private ArtistRepository artistRepository;
-    private TrackRepository trackRepository;
+    private final AlbumRepository albumRepository;
+    private final ArtistRepository artistRepository;
+    private final TrackRepository trackRepository;
+    private final FollowRepository followRepository;
+    private final INotificationService notificationService;
+    private final NotificationRepository notificationRepository;
 
-    public AlbumServiceImpl(AlbumRepository albumRepository, ArtistRepository artistRepository, TrackRepository trackRepository) {
+    public AlbumServiceImpl(AlbumRepository albumRepository,
+                            ArtistRepository artistRepository,
+                            TrackRepository trackRepository,
+                            FollowRepository followRepository,
+                            NotificationRepository notificationRepository,
+                            INotificationService notificationService) {
         this.albumRepository = albumRepository;
         this.artistRepository = artistRepository;
         this.trackRepository = trackRepository;
+        this.followRepository = followRepository;
+        this.notificationRepository = notificationRepository;
+        this.notificationService = notificationService;
     }
 
     @Override
@@ -57,34 +69,51 @@ public class AlbumServiceImpl implements IAlbumService {
         // 2. Xử lý chuỗi Key/Path nhận từ Frontend gửi qua
         String savedImageKey = null;
 
-        // Kiểm tra DTO gửi lên có dữ liệu hay không
         if (dto.coverImageKey() != null && !dto.coverImageKey().trim().isEmpty()) {
             savedImageKey = dto.coverImageKey();
-
-            // ✅ BẮT BUỘC NẰM TRONG KHỐI IF: Chỉ gọi startsWith khi savedImageKey CHẮC CHẮN KHÔNG NULL
             if (!savedImageKey.startsWith("images/")) {
                 savedImageKey = "images/" + savedImageKey;
             }
         } else {
-            // 🔥 PHÒNG THỦ: Nếu trường hợp Frontend gửi lên chuỗi rỗng hoặc null,
-            // bồ có thể gán cho nó 1 cái ảnh mặc định để DB không bị trống trường img.
             savedImageKey = "images/default-cover.png";
         }
 
         // 3. Tạo Album mới và gán chuỗi Key vào trường 'img'
         Album newAlbum = new Album();
         newAlbum.setName(dto.albumTitle());
-        newAlbum.setImg(savedImageKey); // Lưu chuỗi String sạch vào Database
+        newAlbum.setImg(savedImageKey);
         newAlbum.setArtist(mainArtist);
         newAlbum.setTrackTotal(0);
         newAlbum.setUploadDate(LocalDate.now());
 
         Album savedAlbum = albumRepository.save(newAlbum);
 
-        // 4. Cập nhật số lượng Album cho Ca sĩ chính như cũ
+        // 4. Cập nhật số lượng Album cho Ca sĩ chính
         int realTotalAlbums = albumRepository.countByArtistId(mainArtist.getId());
         mainArtist.setAlbumTotal(realTotalAlbums);
         artistRepository.save(mainArtist);
+
+        try {
+            List<Follow> follows = followRepository.findByArtistId(mainArtist.getId());
+
+            if (follows != null && !follows.isEmpty()) {
+                for (Follow follow : follows) {
+                    Notification notification = new Notification();
+                    notification.setUser(follow.getUser()); // Gửi thông báo đến từng fan
+                    notification.setArtist(mainArtist);
+                    notification.setAlbum(savedAlbum); // Gắn album liên kết
+                    notification.setContent("Nghệ sĩ " + mainArtist.getName() + " vừa phát hành album mới: " + savedAlbum.getName());
+                    notification.setIsRead(false);
+                    notification.setCreatedAt(LocalDateTime.now());
+
+                    if (notificationService instanceof NotificationServiceImpl impl) {
+                        impl.saveAndSend(notification);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi gửi thông báo tạo album cho người theo dõi: " + e.getMessage());
+        }
 
         return savedAlbum;
     }
@@ -105,23 +134,20 @@ public class AlbumServiceImpl implements IAlbumService {
     public AlbumDetailResponseDTO toDetailResponseDto(Album album) {
         if (album == null) return null;
 
-        // 1. Ánh xạ Artist chủ quản với cấu trúc mới
         ArtistResponseDTO artistDTO = null;
         if (album.getArtist() != null) {
-            // Dùng constructor đầy đủ hoặc constructor rút gọn bồ đã định nghĩa
             artistDTO = new ArtistResponseDTO(
                     album.getArtist().getId(),
                     album.getArtist().getName(),
                     album.getArtist().getImg(),
                     album.getArtist().getCover(),
                     album.getArtist().getEmail(),
-                    album.getArtist().getUsername(), // Đảm bảo entity Artist có getUserName()
-                    album.getArtist().getTrackTotal(), // Đảm bảo entity Artist có getTrackTotal()
-                    album.getArtist().getAlbumTotal()  // Đảm bảo entity Artist có getAlbumTotal()
+                    album.getArtist().getUsername(),
+                    album.getArtist().getTrackTotal(),
+                    album.getArtist().getAlbumTotal()
             );
         }
 
-        // 2. Lấy danh sách Tracks bằng cách gọi trực tiếp Repository (như đã sửa ở bước trước)
         List<Track> tracks = trackRepository.findByAlbumId(album.getId());
 
         List<TrackResponseDTO> trackList = tracks.stream()
@@ -160,30 +186,49 @@ public class AlbumServiceImpl implements IAlbumService {
     }
 
     @Override
-    @Transactional(readOnly = true) // <--- THÊM CÁI NÀY VÀO
+    @Transactional(readOnly = true)
     public Page<AlbumDetailResponseDTO> findAll(Pageable pageable) {
         Page<Album> page = albumRepository.findAllWithArtist(pageable);
         return page.map(album -> this.toDetailResponseDto(album));
     }
 
-    // ok
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteAlbum(Integer id) {
         Album album = albumRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Không thể xóa! Không tìm thấy Album có ID: " + id));
 
-        List<Track> tracksInAlbum = trackRepository.findByAlbumId(id);
+        // 1. Xử lý bảng NOTIFICATIONS: Gỡ album_id thành null để tránh lỗi khóa ngoại FKjkfglt8k7yrmt3gbggt7mj17x
+        List<Notification> notifications = notificationRepository.findByAlbumId(id);
+        if (notifications != null && !notifications.isEmpty()) {
+            for (Notification notif : notifications) {
+                notif.setAlbum(null);
+            }
+            notificationRepository.saveAll(notifications);
+        }
 
+        // 2. Xử lý bảng TRACKS: Gỡ album_id thành null để biến các bài hát trong album thành Single độc lập
+        List<Track> tracksInAlbum = trackRepository.findByAlbumId(id);
         if (tracksInAlbum != null && !tracksInAlbum.isEmpty()) {
             for (Track track : tracksInAlbum) {
-                track.setAlbum(null); // Biến bài hát trong album thành bài hát đơn lẻ (Single)
+                track.setAlbum(null);
             }
+            trackRepository.saveAll(tracksInAlbum);
         }
+
         if (album.getTracks() != null) {
             album.getTracks().clear();
         }
 
+        // 3. Tiến hành xóa Album an toàn
         albumRepository.delete(album);
+
+        // 4. Cập nhật lại tổng số album cho nghệ sĩ
+        Artist artist = album.getArtist();
+        if (artist != null) {
+            int realTotalAlbums = albumRepository.countByArtistId(artist.getId());
+            artist.setAlbumTotal(realTotalAlbums);
+            artistRepository.save(artist);
+        }
     }
 }

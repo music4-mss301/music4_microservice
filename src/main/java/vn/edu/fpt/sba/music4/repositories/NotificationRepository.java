@@ -13,6 +13,7 @@ import java.util.List;
 public interface NotificationRepository extends JpaRepository<Notification, Integer> {
 
     List<Notification> findByUserIdOrderByCreatedAtDesc(Integer userId);
+    List<Notification> findByAlbumId(Integer albumId);
     void deleteByUserId(Integer userId);
     @Modifying
     @Query("DELETE FROM Notification n WHERE n.artist.id = :artistId OR n.track.id IN (SELECT ta.track.id FROM TrackArtist ta WHERE ta.artist.id = :artistId AND UPPER(ta.role) = 'MAIN')")
