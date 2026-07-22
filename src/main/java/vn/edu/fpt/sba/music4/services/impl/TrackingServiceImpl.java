@@ -57,69 +57,89 @@ public class TrackingServiceImpl implements ITrackingService{
     @Transactional
     public void recordPlayHistory(Integer trackId, Integer userId, String currentUsername, String currentRole) {
         try {
-            Track track = trackRepository.findById(trackId)
-                    .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát"));
+            Track track = trackRepository.findById(trackId).orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát"));
 
-            boolean isArtistOrAdmin = currentRole != null
-                    && (currentRole.toUpperCase().contains("ARTIST")
-                    || currentRole.toUpperCase().contains("ADMIN"));
+            boolean isArtistOrAdmin = currentRole != null && (currentRole.toUpperCase().contains("ARTIST")
+                            || currentRole.toUpperCase().contains("ADMIN")
+            );
+
             String roleLog = currentRole != null ? currentRole : "N/A";
 
-            if (!isArtistOrAdmin) {
-                long windowSeconds = resolveDuplicateViewWindowSeconds(track);
-
-                Optional<History> lastHistory = historyRepository
-                        .findTopByUserIdAndTrackIdOrderByListenedAtDesc(userId, trackId);
-
-                boolean countedRecently = lastHistory.isPresent()
-                        && lastHistory.get().getListenedAt() != null
-                        && lastHistory.get().getListenedAt()
-                        .isAfter(LocalDateTime.now().minusSeconds(windowSeconds));
-
-                if (countedRecently) {
-                    log.info("[ANTI-DUP] Bỏ qua cộng view trùng lặp cho User {} - Track {} (đã ghi nhận cách đây < {}s, duration={}s)",
-                            userId, trackId, windowSeconds, track.getDuration());
-                } else {
-                    trackRepository.incrementViewCount(trackId);
-                    log.info("[SUCCESS] Đã cộng 1 view cho bài hát {}", trackId);
-
-                    User user = userRepository.findById(userId).orElse(null);
-                    if (user != null) {
-                        History history = new History();
-                        history.setUser(user);
-                        history.setTrack(track);
-                        history.setListenedAt(LocalDateTime.now());
-                        historyRepository.save(history);
-                    }
-                }
-            } else {
-                log.info("[ANTI-CHEAT] BỎ QUA CỘNG VIEW & HISTORY: User {} (Role: {})",
-                        currentUsername, roleLog);
+            // Artist/Admin không được tính view
+            if (isArtistOrAdmin) {
+                log.info("[ANTI-CHEAT] Bỏ qua cộng VIEW & HISTORY: User {} (Role: {})", currentUsername, roleLog);
+                return;
             }
 
+            long windowSeconds = resolveDuplicateViewWindowSeconds(track);
+
+            Optional<History> lastCompletedHistory =
+                    historyRepository.findTopByUserIdAndTrackIdOrderByListenedAtDesc(userId, trackId);
+
+            boolean countedRecently =
+                    lastCompletedHistory.isPresent()
+                            && lastCompletedHistory.get().getListenedAt() != null
+                            && lastCompletedHistory.get()
+                            .getListenedAt()
+                            .isAfter(LocalDateTime.now().minusSeconds(windowSeconds));
+
+            if (countedRecently) {
+                log.info(
+                        "[ANTI-DUP] Bỏ qua VIEW trùng: User {} - Track {}. " +
+                                "Lượt nghe hoàn thành gần nhất chưa quá {}s.",
+                        userId,
+                        trackId,
+                        windowSeconds
+                );
+                return;
+            }
+
+            trackRepository.incrementViewCount(trackId);
+
+            User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+
+            History history = new History();
+            history.setUser(user);
+            history.setTrack(track);
+            history.setListenedAt(LocalDateTime.now());
+            history.setPlaybackPosition(0);
+
+            historyRepository.save(history);
+
+            log.info("[SUCCESS] User {} nghe hoàn thành Track {} -> VIEW +1, playback_position = 0", userId, trackId);
+
         } catch (Exception e) {
-            log.error("Lỗi khi ghi lại lượt nghe cho bài hát {}: {}", trackId, e.getMessage());
+            log.error("Lỗi khi ghi nhận lượt nghe hoàn thành Track {}: {}", trackId, e.getMessage(), e);
         }
     }
 
     @Override
     @Transactional
     public void syncPlaybackPosition(SyncTimeRequest request) {
-        try {
-            Optional<History> latestHistory = historyRepository
-                    .findTopByUserIdAndTrackIdOrderByListenedAtDesc(request.userId(), request.trackId());
 
-            if (latestHistory.isPresent()) {
-                // Đã có lịch sử -> Chỉ cần cập nhật thời gian
-                History history = latestHistory.get();
-                history.setPlaybackPosition(request.position());
-                historyRepository.save(history);
-            } else {
-                log.warn("Bỏ qua Sync do chưa tìm thấy Session gốc (Luồng Async có thể đang xử lý). Track: {}", request.trackId());
-            }
-        } catch (Exception e) {
-            log.error("Time synchronization error for Track {}: {}", request.trackId(), e.getMessage());
+        Integer userId = request.userId();
+        Integer trackId = request.trackId();
+        Integer position = request.position();
+
+        History history = historyRepository
+                .findTopByUserIdAndTrackIdOrderByListenedAtDesc(userId, trackId).orElse(null);
+
+        if (history == null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
+
+            Track track = trackRepository.findById(trackId)
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy bài hát"));
+
+            history = new History();
+            history.setUser(user);
+            history.setTrack(track);
+            history.setListenedAt(LocalDateTime.now());
         }
+
+        history.setPlaybackPosition(position);
+
+        historyRepository.save(history);
     }
 
     @Override
