@@ -10,13 +10,11 @@ import java.util.List;
 
 public interface ITrackingService {
 
-    void recordPlayHistory(Integer trackId, Integer userId, String currentUsername);
+    void recordPlayHistory(Integer trackId, Integer userId, String currentUsername, String currentRole);
 
     void syncPlaybackPosition(SyncTimeRequest request);
 
     Page<TrackResponseDTO> getListeningHistory(Integer userId, Pageable pageable);
 
     void cleanupHistory();
-
-    void saveHistory(TrackPlayRequest request);
 }

@@ -35,18 +35,6 @@ public class TrackingController {
     private final ITrackingService trackingService;
     private final UserRepository userRepository;
 
-    @PostMapping("/play")
-    @Operation(summary = "Ghi nhận lượt nghe nhạc", description = "Lưu lại lịch sử nghe nhạc của user vào DB và tự động tăng view_count cho bài hát. Hỗ trợ xử lý bất đồng bộ (@Async) để không làm chậm trải nghiệm.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Ghi nhận lượt nghe thành công"),
-            @ApiResponse(responseCode = "400", description = "Dữ liệu đầu vào không hợp lệ (VD: thiếu trackId)")
-    })
-    public ResponseEntity<String> recordPlayHistory(@Valid @RequestBody TrackPlayRequest request, Principal principal) {
-        trackingService.recordPlayHistory(request.trackId(), request.userId(), principal.getName());
-
-        return ResponseEntity.ok("Listen recorded successfully!");
-    }
-
     @PutMapping("/sync-time")
     @Operation(summary = "Đồng bộ thời gian nghe dở", description = "Cập nhật vị trí thời gian (tính bằng giây) mà user đang phát bài hát, giúp tính năng 'Nghe tiếp tục' hoạt động.")
     @ApiResponses(value = {
@@ -65,14 +53,27 @@ public class TrackingController {
             @ApiResponse(responseCode = "404", description = "Không tìm thấy thông tin người dùng")
     })
     public ResponseEntity<Page<TrackResponseDTO>> getHistory(@PathVariable Integer userId,
-                                                             @PageableDefault(size = 20, page = 0) Pageable pageable) {
+                                                             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         return ResponseEntity.ok(trackingService.getListeningHistory(userId, pageable));
     }
 
     @PostMapping("/history")
     public ResponseEntity<?> saveHistory(@RequestBody @Valid TrackPlayRequest request) {
         try {
-            trackingService.saveHistory(request);
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+            String currentUsername = (auth != null) ? auth.getName() : "anonymousUser";
+
+            String currentRole = (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty())
+                    ? auth.getAuthorities().iterator().next().getAuthority()
+                    : null;
+
+            trackingService.recordPlayHistory(
+                    request.trackId(),
+                    request.userId(),
+                    currentUsername,
+                    currentRole
+            );
             return ResponseEntity.ok("Lưu lịch sử nghe nhạc thành công!");
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Lỗi: " + e.getMessage());
