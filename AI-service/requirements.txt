@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# --- Web Server Core ---
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.4.0
+
+# --- AI & Machine Learning ---
+sentence-transformers>=2.2.2
+torch>=2.0.0
+numpy>=1.24.0
+
+# --- Kết nối Microservices ---
+python-dotenv>=1.0.0
+py-eureka-client>=0.11.2

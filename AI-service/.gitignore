@@ -1,0 +1,31 @@
+# --- Python Core ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- Virtual Environments ---
+venv/
+env/
+.venv/
+.env
+
+# --- IDE & Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- OS generated files ---
+.DS_Store
+Thumbs.db
+
+# --- Logs & Databases ---
+*.log
+*.sqlite3
+
+# --- AI Models & Weights ---
+*.pt
+*.pth
+*.onnx
+models/
+weights/

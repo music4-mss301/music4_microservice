@@ -1,0 +1,108 @@
+spring:
+  application:
+    name: analytics-service
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=Music4_Analytics;encrypt=true;trustServerCertificate=true}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      max-lifetime: 300000
+      connection-timeout: 60000   # Azure SQL serverless free có thể đang pause, cần ~1 phút để thức
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_batch_fetch_size: 50
+        use_nationalized_character_data: true   # String -> NVARCHAR (lưu tiếng Việt)
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  rabbitmq:
+    # CloudAMQP: amqps://user:pass@host/vhost
+    addresses: ${RABBITMQ_ADDRESSES:amqp://guest:guest@localhost:5672}
+    listener:
+      simple:
+        default-requeue-rejected: false   # lỗi sau khi retry => vào DLQ
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 5000
+
+server:
+  port: ${SERVER_PORT:8084}
+
+app:
+  security:
+    gateway-secret: ${GATEWAY_SECRET:}
+    internal-token: ${INTERNAL_TOKEN:change-me-internal-token}
+    public-get-paths:
+      - /api/recommendations
+      - /api/analytics/top-tracks
+    public-paths:
+      - /api/tracking/play
+      - /api/tracking/history
+  analytics:
+    play-dedupe-seconds: 30
+
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+# URL tĩnh cho profile render (không có Eureka). Để trống => gọi qua Eureka (lb://<tên service>).
+services:
+  user-service.url: ${USER_SERVICE_URL:}
+  content-service.url: ${CONTENT_SERVICE_URL:}
+  engagement-service.url: ${ENGAGEMENT_SERVICE_URL:}
+  analytics-service.url: ${ANALYTICS_SERVICE_URL:}
+  media-service.url: ${MEDIA_SERVICE_URL:}
+  search-admin-service.url: ${SEARCH_ADMIN_SERVICE_URL:}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: ${CB_TIMEOUT:5s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
