@@ -1,0 +1,46 @@
+# SQL Server cho Music4 chạy bằng Docker (yêu cầu của giảng viên).
+#   docker compose -f docker-compose.db.yml up -d
+# Gộp 2 service này vào docker-compose.yml chính khi dựng toàn hệ thống (Tài).
+# Cần >= 2 GB RAM cho container. Image chỉ có bản x86_64 (máy Mac chip M dùng Rosetta trong Docker Desktop).
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: music4-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Đặt MSSQL_SA_PASSWORD trong .env (>= 8 ký tự, có hoa, thường, số, ký tự đặc biệt)}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks: [music4-net]
+
+  # Chạy 1 lần: tạo 5 DB + 5 login riêng rồi thoát. Idempotent: chạy lại không lỗi.
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: music4-sqlserver-init
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      SVC_PASSWORD: ${DB_SERVICE_PASSWORD:?Đặt DB_SERVICE_PASSWORD trong .env}
+    volumes:
+      - ./deploy/sqlserver/init.sql:/init/init.sql:ro
+    entrypoint: ["/bin/bash", "-c", "/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -v SVC_PASSWORD=\"$$SVC_PASSWORD\" -i /init/init.sql"]
+    restart: "no"
+    networks: [music4-net]
+
+volumes:
+  sqlserver-data:
+
+networks:
+  music4-net:
+    name: music4-net
