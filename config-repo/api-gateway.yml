@@ -1,0 +1,8 @@
+# Ví dụ cấu hình riêng cho gateway lấy từ Config Server.
+spring:
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: 3000

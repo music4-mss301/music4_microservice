@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: search-admin-service
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  rabbitmq:
+    # CloudAMQP: amqps://user:pass@host/vhost
+    addresses: ${RABBITMQ_ADDRESSES:amqp://guest:guest@localhost:5672}
+    listener:
+      simple:
+        default-requeue-rejected: false   # lỗi sau khi retry => vào DLQ
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 5000
+
+server:
+  port: ${SERVER_PORT:8086}
+
+app:
+  security:
+    gateway-secret: ${GATEWAY_SECRET:}
+    internal-token: ${INTERNAL_TOKEN:change-me-internal-token}
+    public-get-paths:
+      - /api/search/**
+  search:
+    es-url: ${ELASTICSEARCH_URL:http://localhost:9200}
+    es-username: ${ELASTICSEARCH_USERNAME:}
+    es-password: ${ELASTICSEARCH_PASSWORD:}
+    ai-url: ${AI_SERVICE_URL:http://localhost:8000}
+    ai-api-key: ${AI_API_KEY:}
+    vector-dims: 384
+    embed-retry-ms: 600000
+
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+# URL tĩnh cho profile render (không có Eureka). Để trống => gọi qua Eureka (lb://<tên service>).
+services:
+  user-service.url: ${USER_SERVICE_URL:}
+  content-service.url: ${CONTENT_SERVICE_URL:}
+  engagement-service.url: ${ENGAGEMENT_SERVICE_URL:}
+  analytics-service.url: ${ANALYTICS_SERVICE_URL:}
+  media-service.url: ${MEDIA_SERVICE_URL:}
+  search-admin-service.url: ${SEARCH_ADMIN_SERVICE_URL:}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: ${CB_TIMEOUT:5s}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
