@@ -1,0 +1,137 @@
+spring:
+  application:
+    name: api-gateway
+  config:
+    import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  cloud:
+    gateway:
+      server:
+        webflux:
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,https://*.vercel.app}
+                allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+                allowed-headers: "*"
+                exposed-headers: Content-Range,Accept-Ranges,Content-Length
+                allow-credentials: true
+                max-age: 3600
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+          routes:
+            - id: user-service
+              uri: ${USER_SERVICE_URI:lb://user-service}
+              predicates:
+                - Path=/api/auth/**,/api/users/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: user-service
+                    fallbackUri: forward:/fallback/user-service
+            - id: content-service
+              uri: ${CONTENT_SERVICE_URI:lb://content-service}
+              predicates:
+                - Path=/api/tracks/**,/api/albums/**,/api/artists/**,/api/categories/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: content-service
+                    fallbackUri: forward:/fallback/content-service
+            - id: engagement-service
+              uri: ${ENGAGEMENT_SERVICE_URI:lb://engagement-service}
+              predicates:
+                - Path=/api/playlists/**,/api/favorites/**,/api/follows/**,/api/ratings/**,/api/comments/**,/api/notifications/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: engagement-service
+                    fallbackUri: forward:/fallback/engagement-service
+            - id: analytics-service
+              uri: ${ANALYTICS_SERVICE_URI:lb://analytics-service}
+              predicates:
+                - Path=/api/tracking/**,/api/history/**,/api/analytics/**,/api/recommendations/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: analytics-service
+                    fallbackUri: forward:/fallback/analytics-service
+            - id: media-service
+              uri: ${MEDIA_SERVICE_URI:lb://media-service}
+              predicates:
+                - Path=/api/media/**
+              # media: không bọc CB vì stream/upload kéo dài; lỗi trả thẳng từ service
+            - id: search-admin-service
+              uri: ${SEARCH_ADMIN_SERVICE_URI:lb://search-admin-service}
+              predicates:
+                - Path=/api/search/**,/api/admin/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: search-admin-service
+                    fallbackUri: forward:/fallback/search-admin-service
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  gateway:
+    jwt-secret: ${JWT_SECRET}               # GIỐNG user-service
+    gateway-secret: ${GATEWAY_SECRET:change-me-gateway-secret}
+    # Không bắt buộc token (có token thì vẫn gắn danh tính). Service phía sau tự kiểm tra quyền chi tiết.
+    public-paths:
+      - "POST:/api/auth/**"
+      - "GET:/api/users/*"
+      - "GET:/api/tracks/**"
+      - "GET:/api/albums/**"
+      - "GET:/api/artists/**"
+      - "GET:/api/categories/**"
+      - "GET:/api/search/**"
+      - "GET:/api/media/stream/preview"
+      - "GET:/api/media/file"
+      - "POST:/api/tracking/play"
+      - "POST:/api/tracking/history"
+      - "GET:/api/recommendations"
+      - "GET:/api/analytics/top-tracks"
+      - "GET:/api/ratings/average/**"
+      - "GET:/api/comments/track/**"
+      - "GET:/api/favorites/track/**"
+      - "GET:/api/follows/artist/**"
+      - "GET:/api/follows/user/**"
+      - "GET:/api/playlists/user/**"
+      - "GET:/api/playlists/*"
+      - "GET:/api/playlists/*/tracks"
+    # Thẻ <audio> không gửi được header Authorization => cho phép ?token= riêng cho stream
+    query-token-paths:
+      - /api/media/stream
+      - /api/tracks/stream/*
+
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        register-health-indicator: true
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: ${CB_TIMEOUT:70s}   # > timeout upload ở content-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,circuitbreakers
+  endpoint:
+    health:
+      show-details: always

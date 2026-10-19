@@ -1,0 +1,15 @@
+# Cấu hình DÙNG CHUNG cho mọi service, cấp qua config-server (profile native).
+# Service đọc bằng spring.config.import=optional:configserver:... ; giá trị ở đây ghi đè application.yml của service.
+logging:
+  level:
+    root: INFO
+    vn.edu.fpt.mss: DEBUG
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
