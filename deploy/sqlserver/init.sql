@@ -9,11 +9,11 @@ SET NOCOUNT ON;
 
 DECLARE @dbs TABLE (db SYSNAME, login SYSNAME);
 INSERT INTO @dbs VALUES
- (N'Music4_User',       N'music4_user_svc'),
- (N'Music4_Content',    N'music4_content_svc'),
- (N'Music4_Engagement', N'music4_engagement_svc'),
- (N'Music4_Analytics',  N'music4_analytics_svc'),
- (N'Music4_Media',      N'music4_media_svc');
+ (N'Music4_User',       N'music4_group4'),
+ (N'Music4_Content',    N'music4_group4'),
+ (N'Music4_Engagement', N'music4_group4'),
+ (N'Music4_Analytics',  N'music4_group4'),
+ (N'Music4_Media',      N'music4_group4');
 
 DECLARE @db SYSNAME, @login SYSNAME, @sql NVARCHAR(MAX);
 DECLARE c CURSOR LOCAL FAST_FORWARD FOR SELECT db, login FROM @dbs;
