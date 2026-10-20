@@ -21,7 +21,7 @@ Giảng viên cho phép host DB trên **Supabase hoặc Neon**, nên **bỏ SQL 
 | --- | --- |
 | Loại DB | **PostgreSQL**, 5 database riêng: `music4_user`, `music4_content`, `music4_engagement`, `music4_analytics`, `music4_media` (+ Elasticsearch cho search) |
 | Host | **Neon** (free, tạo được nhiều database, không hết hạn). Supabase chỉ có 2 project free nên khó chia 5 DB, giữ làm dự phòng |
-| Dev | Mỗi người một project Neon riêng, hoặc PostgreSQL cài trên máy (`deploy/postgres/create-databases.sql`) |
+| Dev | Mỗi người một project Neon riêng (miễn phí) |
 | Demo và Render | Một project Neon chung (ví dụ `music4-prod`) do Tài giữ. Render chỉ cần đặt `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` cho từng service |
 | Docker | Chỉ còn RabbitMQ, Elasticsearch, AI-service và (sau này) các container service. **Không còn container DB** |
 | Việc bỏ | Không cần đăng ký Azure, không cần `azure-init.sql`, không còn xung đột cổng 1433 |
