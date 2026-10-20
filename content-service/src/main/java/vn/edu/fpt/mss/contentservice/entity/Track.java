@@ -23,17 +23,17 @@ public class Track {
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "img", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "img", columnDefinition = "TEXT")
     private String img;
 
     @Column(name = "duration")
     private Integer duration;
 
     /** Object key trên S3 (media-service quản lý file). */
-    @Column(name = "file_path", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "file_path", columnDefinition = "TEXT")
     private String filePath;
 
-    @Column(name = "preview_path", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "preview_path", columnDefinition = "TEXT")
     private String previewPath;
 
     @CreationTimestamp

@@ -18,7 +18,7 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "img", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "img", columnDefinition = "TEXT")
     private String img;
 
     @Column(name = "name", length = 100, nullable = false)

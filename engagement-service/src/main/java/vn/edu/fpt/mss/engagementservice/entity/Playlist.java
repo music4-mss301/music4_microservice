@@ -30,7 +30,7 @@ public class Playlist {
     @Column(name = "description", length = 500)
     private String description;
 
-    @Column(name = "img", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "img", columnDefinition = "TEXT")
     private String img;
 
     @Builder.Default

@@ -21,7 +21,7 @@ public class Album {
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "img", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "img", columnDefinition = "TEXT")
     private String img;
 
     @CreationTimestamp

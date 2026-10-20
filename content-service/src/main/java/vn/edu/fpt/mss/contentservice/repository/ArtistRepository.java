@@ -22,7 +22,7 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     @Query("""
             SELECT a FROM Artist a WHERE a.isDeleted = false
-              AND (:keyword IS NULL OR LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%')))
+              AND (CAST(:keyword AS string) IS NULL OR LOWER(a.name) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))
             """)
     Page<Artist> search(@Param("keyword") String keyword, Pageable pageable);
 

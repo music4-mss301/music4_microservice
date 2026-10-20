@@ -4,14 +4,14 @@ spring:
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
   datasource:
-    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=Music4_Media;encrypt=true;trustServerCertificate=true}
-    username: ${DB_USERNAME:sa}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/music4_media}
+    username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
-    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:5}
       max-lifetime: 300000
-      connection-timeout: 60000   # Azure SQL serverless free có thể đang pause, cần ~1 phút để thức
+      connection-timeout: 60000   # Neon tự ngủ khi rảnh, lần kết nối đầu cần vài giây
   jpa:
     hibernate:
       ddl-auto: validate
@@ -19,7 +19,6 @@ spring:
     properties:
       hibernate:
         default_batch_fetch_size: 50
-        use_nationalized_character_data: true   # String -> NVARCHAR (lưu tiếng Việt)
   flyway:
     enabled: true
     locations: classpath:db/migration

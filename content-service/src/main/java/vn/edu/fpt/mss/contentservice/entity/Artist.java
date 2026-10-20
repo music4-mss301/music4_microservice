@@ -19,16 +19,16 @@ public class Artist {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(name = "user_id")   // unique qua filtered index UX_artists_user_id (cho phép nhiều NULL)
+    @Column(name = "user_id", unique = true)
     private Integer userId;
 
     @Column(name = "name", length = 100, nullable = false)
     private String name;
 
-    @Column(name = "img", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "img", columnDefinition = "TEXT")
     private String img;
 
-    @Column(name = "cover", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "cover", columnDefinition = "TEXT")
     private String cover;
 
     @Column(name = "gender")

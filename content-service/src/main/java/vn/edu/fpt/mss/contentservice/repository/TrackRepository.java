@@ -46,8 +46,8 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
     @Query("""
             SELECT DISTINCT t FROM Track t
             LEFT JOIN t.trackArtists ta LEFT JOIN ta.artist a
-            WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
-               OR LOWER(a.name) LIKE LOWER(CONCAT('%', :keyword, '%'))
+            WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%'))
+               OR LOWER(a.name) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%'))
             """)
     Page<Track> search(@Param("keyword") String keyword, Pageable pageable);
 
