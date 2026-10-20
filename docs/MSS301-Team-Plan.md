@@ -2,6 +2,34 @@
 
 > Tài liệu cho cả team. Đọc cùng `MSS301-microservices.md` (thiết kế domain) và `Music4-refactor-events.md` (event contract, luồng gợi ý/sync ES). Mục tiêu: **100% điểm chính + 50% bonus, 0% penalty.**
 
+**Phạm vi dự án (tránh nhầm với môn PRM):**
+
+| Môn | Backend | Frontend |
+| --- | --- | --- |
+| **MSS301** (tài liệu này) | Repo `music4-mss301/music4_microservice`: Maven multi-module, `pom.xml` gốc là aggregator, mỗi service một thư mục ở gốc | `Music4-Frontend` (React + Vite), gọi qua api-gateway `:8080` |
+| PRM393 (không thuộc tài liệu này) | `Music4-Backend` (monolith) | App Flutter |
+
+Code monolith đã được xóa khỏi repo MSS (vẫn còn trong lịch sử Git). Mọi thay đổi cho MSS không đụng tới `Music4-Backend` và app Flutter.
+
+---
+
+## Cập nhật 20/10: ĐỔI DATABASE SANG POSTGRESQL (Neon), BỎ SQL SERVER DOCKER
+
+Giảng viên cho phép host DB trên **Supabase hoặc Neon**, nên **bỏ SQL Server Docker và bỏ kế hoạch Azure SQL**. Mọi chỗ bên dưới nhắc tới SQL Server, `docker-compose.db.yml`, `init.sql` hay Azure SQL là **bản cũ**; nội dung mới nằm ở đây.
+
+| Hạng mục | Quyết định mới |
+| --- | --- |
+| Loại DB | **PostgreSQL**, 5 database riêng: `music4_user`, `music4_content`, `music4_engagement`, `music4_analytics`, `music4_media` (+ Elasticsearch cho search) |
+| Host | **Neon** (free, tạo được nhiều database, không hết hạn). Supabase chỉ có 2 project free nên khó chia 5 DB, giữ làm dự phòng |
+| Dev | Mỗi người một project Neon riêng, hoặc PostgreSQL cài trên máy (`deploy/postgres/create-databases.sql`) |
+| Demo và Render | Một project Neon chung (ví dụ `music4-prod`) do Tài giữ. Render chỉ cần đặt `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` cho từng service |
+| Docker | Chỉ còn RabbitMQ, Elasticsearch, AI-service và (sau này) các container service. **Không còn container DB** |
+| Việc bỏ | Không cần đăng ký Azure, không cần `azure-init.sql`, không còn xung đột cổng 1433 |
+| Code | Đã vá bằng `to-postgres/apply.py`: pom (`postgresql`, `flyway-database-postgresql`), `application.yml`, entity (`TEXT`), migration viết lại bằng PostgreSQL, câu truy vấn có tham số NULL được ép kiểu `CAST(:p AS string)` |
+| Tiêu chí barem | **DB per service** vẫn đạt: 5 database riêng, mỗi service chỉ nối DB của mình |
+
+Lưu ý cho tiêu chí Docker: compose đầy đủ sẽ đọc `DB_URL` từ biến môi trường trỏ tới Neon, các container Java gọi nhau qua tên trong mạng Docker.
+
 ---
 
 ## Cập nhật 17/10: trạng thái sau khi sinh code
