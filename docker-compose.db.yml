@@ -11,7 +11,7 @@ services:
       MSSQL_PID: Developer
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Đặt MSSQL_SA_PASSWORD trong .env (>= 8 ký tự, có hoa, thường, số, ký tự đặc biệt)}
     ports:
-      - "1433:1433"
+      - "${MSSQL_PORT:-1433}:1433"
     volumes:
       - sqlserver-data:/var/opt/mssql
     healthcheck:
