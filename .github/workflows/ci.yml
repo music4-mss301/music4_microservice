@@ -1,0 +1,48 @@
+name: Music4 Microservices CI
+
+on:
+  push:
+    branches: [ main, dev, develop ]
+  pull_request:
+    branches: [ main, dev, develop ]
+  workflow_dispatch:
+
+# Tự động hủy workflow cũ nếu có commit mới đẩy lên cùng 1 nhánh/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module:
+          - config-server
+          - eureka-server
+          - api-gateway
+          - user-service
+          - content-service
+          - engagement-service
+          - analytics-service
+          - media-service
+          - search-admin-service
+
+    steps:
+      - name: 1. Checkout source code
+        uses: actions/checkout@v4
+
+      - name: 2. Set up JDK 21 & Cache Maven dependencies
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: 3. Grant execute permission for mvnw
+        run: chmod +x mvnw
+
+      - name: 4. Build and Run Unit Tests (${{ matrix.module }})
+        run: ./mvnw -B -pl ${{ matrix.module }} -am test package
