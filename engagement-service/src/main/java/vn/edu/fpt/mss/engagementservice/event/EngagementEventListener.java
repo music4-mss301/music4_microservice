@@ -7,6 +7,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import vn.edu.fpt.mss.engagementservice.config.RabbitTopologyConfig;
+import vn.edu.fpt.mss.engagementservice.dto.event.AlbumEventPayload;
 import vn.edu.fpt.mss.engagementservice.dto.event.IdPayload;
 import vn.edu.fpt.mss.engagementservice.dto.event.TrackEventPayload;
 import vn.edu.fpt.mss.engagementservice.entity.ProcessedEvent;
@@ -37,6 +38,10 @@ public class EngagementEventListener {
             case EventTypes.TRACK_CREATED -> {
                 int n = notificationService.notifyFollowersOfNewTrack(convert(event, TrackEventPayload.class));
                 log.info("Tạo {} thông báo cho bài mới", n);
+            }
+            case EventTypes.ALBUM_CREATED -> {
+                int n = notificationService.notifyFollowersOfNewAlbum(convert(event, AlbumEventPayload.class));
+                log.info("Tạo {} thông báo cho album mới", n);
             }
             case EventTypes.TRACK_DELETED -> insightService.cleanupTrack(convert(event, TrackEventPayload.class).trackId());
             case EventTypes.ARTIST_DELETED -> insightService.cleanupArtist(convert(event, IdPayload.class).artistId());

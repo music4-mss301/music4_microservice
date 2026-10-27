@@ -12,7 +12,7 @@ public class RabbitTopologyConfig {
 
     @Bean
     public Declarables engagementQueues() {
-        return new Declarables(RabbitConfig.queueWithDlq(Q_EVENTS, EventTypes.TRACK_CREATED,
+        return new Declarables(RabbitConfig.queueWithDlq(Q_EVENTS, EventTypes.TRACK_CREATED, EventTypes.ALBUM_CREATED,
                 EventTypes.TRACK_DELETED, EventTypes.ARTIST_DELETED, EventTypes.USER_DELETED));
     }
 }

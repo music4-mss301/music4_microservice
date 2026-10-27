@@ -19,6 +19,30 @@ spring:
           default-filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
           routes:
+            # --- bổ sung cho FE (đứng TRƯỚC các route chung) ---
+            # SSE thông báo: không bọc Circuit Breaker vì kết nối sống lâu (CB sẽ cắt và tính là lỗi)
+            - id: engagement-sse
+              uri: ${ENGAGEMENT_SERVICE_URI:lb://engagement-service}
+              predicates:
+                - Path=/api/notifications/subscribe/**
+            # Danh sách người theo dõi nghệ sĩ nằm ở engagement
+            - id: artist-followers
+              uri: ${ENGAGEMENT_SERVICE_URI:lb://engagement-service}
+              predicates:
+                - Path=/api/artists/*/followers
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: engagement-service
+                    fallbackUri: forward:/fallback/engagement-service
+            # Nút "Đồng bộ dữ liệu AI" của dashboard: chuyển thành reindex Elasticsearch (ADMIN)
+            - id: recommendations-sync
+              uri: ${SEARCH_ADMIN_SERVICE_URI:lb://search-admin-service}
+              predicates:
+                - Path=/api/recommendations/sync
+                - Method=POST
+              filters:
+                - RewritePath=/api/recommendations/sync, /api/admin/search/reindex
             - id: user-service
               uri: ${USER_SERVICE_URI:lb://user-service}
               predicates:
@@ -102,6 +126,7 @@ app:
       - "GET:/api/playlists/*/tracks"
     # Thẻ <audio> không gửi được header Authorization => cho phép ?token= riêng cho stream
     query-token-paths:
+      - /api/notifications/subscribe/*
       - /api/media/stream
       - /api/tracks/stream/*
 
