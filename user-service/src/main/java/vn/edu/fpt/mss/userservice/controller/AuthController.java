@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import vn.edu.fpt.mss.userservice.dto.request.*;
@@ -22,9 +23,17 @@ public class AuthController {
     private final AuthService authService;
 
     @Operation(summary = "Đăng ký (role=listener|artist)")
-    @PostMapping("/register")
+    @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<MessageResponse> register(@RequestParam(defaultValue = "listener") String role,
                                                     @Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request, role));
+    }
+
+    /** FE gửi form-data (name, email, username, password) như monolith. */
+    @Operation(summary = "Đăng ký bằng form-data")
+    @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<MessageResponse> registerForm(@RequestParam(defaultValue = "listener") String role,
+                                                        @Valid @ModelAttribute RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request, role));
     }
 

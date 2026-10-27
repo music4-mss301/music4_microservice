@@ -46,6 +46,9 @@ public class SecurityConfig {
                         .accessDeniedHandler((req, res, ex) ->
                                 write(res, HttpStatus.FORBIDDEN, "Bạn không có quyền truy cập", req.getRequestURI())))
                 .authorizeHttpRequests(auth -> {
+                    // SSE: lúc kết nối đóng/hết hạn Tomcat gọi lại ở dạng ASYNC dispatch, không chặn kiểu gọi này
+                    auth.dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC,
+                            jakarta.servlet.DispatcherType.ERROR).permitAll();
                     auth.requestMatchers("/actuator/**", "/v3/api-docs/**", "/swagger-ui/**",
                             "/swagger-ui.html", "/error").permitAll();
                     auth.requestMatchers("/internal/**").hasRole("INTERNAL");

@@ -22,8 +22,14 @@ public class ArtistController {
 
     private final ArtistService artistService;
 
-    /** FE gọi cả /artists và /artists/all. */
-    @GetMapping({"", "/all"})
+    /** FE gọi /artists?page&size (phân trang, mặc định 12 như monolith) và /artists/all (toàn bộ). */
+    @GetMapping("")
+    public PageResponse<ArtistResponse> page(@RequestParam(defaultValue = "0") int page,
+                                             @RequestParam(defaultValue = "12") int size) {
+        return artistService.search(null, page, size);
+    }
+
+    @GetMapping("/all")
     public List<ArtistResponse> getAll() {
         return artistService.getAll();
     }

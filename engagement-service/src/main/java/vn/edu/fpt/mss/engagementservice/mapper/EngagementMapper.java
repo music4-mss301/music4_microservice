@@ -27,7 +27,7 @@ public final class EngagementMapper {
     }
 
     public static NotificationResponse toNotificationResponse(Notification n) {
-        return new NotificationResponse(n.getId(), n.getContent(), n.getTrackId(), n.getArtistId(), n.isRead(),
-                n.getCreatedAt());
+        return new NotificationResponse(n.getId(), n.getTrackId(), n.getTrackName(), n.getAlbumId(), n.getAlbumName(),
+                n.getArtistName(), n.getContent(), n.isRead(), n.getCreatedAt());
     }
 }

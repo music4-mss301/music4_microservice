@@ -29,6 +29,19 @@ public class Notification {
     @Column(name = "track_id")
     private Integer trackId;
 
+    @Column(name = "album_id")
+    private Integer albumId;
+
+    /** Lưu sẵn tên (denormalize) vì tên bài/album/nghệ sĩ nằm ở content-service. */
+    @Column(name = "track_name", length = 255)
+    private String trackName;
+
+    @Column(name = "album_name", length = 255)
+    private String albumName;
+
+    @Column(name = "artist_name", length = 255)
+    private String artistName;
+
     @Column(name = "content", length = 500, nullable = false)
     private String content;
 

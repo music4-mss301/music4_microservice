@@ -27,8 +27,8 @@ public class CategoryController {
         return categoryService.getAll();
     }
 
-    /** FE gọi cả /categories/{id} và /categories/{id}/tracks. */
-    @GetMapping({"/{id}", "/{id}/tracks"})
+    /** /categories/{id}/tracks (phân trang) nằm ở FrontendCompatController. */
+    @GetMapping("/{id}")
     public CategoryDetailResponse getDetail(@PathVariable Integer id) {
         return categoryService.getDetail(id);
     }
