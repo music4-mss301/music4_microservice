@@ -10,34 +10,39 @@ import py_eureka_client.eureka_client as eureka_client
 from api.routes import router
 from core.config import settings
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    registered = False
     try:
-        # Đọc từ biến môi trường để chạy được trong Docker/Render (không hardcode localhost)
+        # Doc tu bien moi truong de chay duoc trong Docker/Render (khong hardcode localhost)
         if os.getenv("EUREKA_ENABLED", "true").lower() == "true":
-            eureka_client.init(
+            await eureka_client.init_async(
                 eureka_server=os.getenv("EUREKA_SERVER_URL", "http://localhost:8761/eureka/"),
                 app_name="ai-service",
                 instance_port=int(os.getenv("PORT", "8000")),
                 instance_host=os.getenv("INSTANCE_HOST", "localhost"),
             )
-        print("[Eureka] AI-Service đã đăng ký thành công với Eureka Server!")
+            registered = True
+            print("[Eureka] AI-Service da dang ky thanh cong voi Eureka Server!")
     except Exception as e:
-        print(f"[Eureka] Không thể kết nối tới Eureka Server: {e}")
+        print(f"[Eureka] Khong the ket noi toi Eureka Server: {e}")
 
     yield
 
-    # --- TẮT: Dừng kết nối Eureka nếu cần ---
-    try:
-        await eureka_client.stop_async()
-        print("[Eureka] Đã dừng kết nối Eureka.")
-    except Exception:
-        pass
+    # --- TAT: dung ket noi Eureka ---
+    if registered:
+        try:
+            await eureka_client.stop_async()
+            print("[Eureka] Da dung ket noi Eureka.")
+        except Exception:
+            pass
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.PROJECT_VERSION,
-    description="Service AI chuyên biệt dịch Gu âm nhạc sang Vector cho Music4.",
+    description="Service AI chuyen biet dich Gu am nhac sang Vector cho Music4.",
     lifespan=lifespan
 )
 
@@ -51,6 +56,7 @@ app.add_middleware(
 
 app.include_router(router)
 
+
 @app.get("/", tags=["Health"])
 def health_check():
     return {
@@ -58,6 +64,7 @@ def health_check():
         "message": "Music4 AI Service is running smoothly!",
         "version": settings.PROJECT_VERSION
     }
+
 
 if __name__ == "__main__":
     import uvicorn
