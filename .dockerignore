@@ -1,0 +1,17 @@
+# Context build là GỐC repo cho các service Java: loại những thứ nặng hoặc bí mật
+**/target/
+**/.git
+.git
+.idea
+*.iml
+**/.env
+**/.env.*
+!**/.env.example
+**/.env.docker.example
+**/.venv
+**/__pycache__
+**/node_modules
+AI-service/
+docs/
+deploy/
+*.md
