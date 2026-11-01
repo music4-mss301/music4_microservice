@@ -1,0 +1,421 @@
+# ============================================================================
+# Music4 (MSS301): toàn bộ hệ thống chạy trong mạng container, MỘT LỆNH:
+#     docker compose up -d --build
+# - Database: PostgreSQL trên Neon, URL/mật khẩu đọc từ <service>/.env (không có container DB).
+# - Bí mật dùng chung (JWT_SECRET, GATEWAY_SECRET, INTERNAL_TOKEN, AI_API_KEY): .env.docker (mẫu: .env.docker.example).
+# - Các container gọi nhau bằng TÊN (eureka-server, rabbitmq, elasticsearch...), không dùng localhost.
+# - Chỉ cần RabbitMQ + Elasticsearch để chạy service trong IntelliJ:  docker compose up -d rabbitmq elasticsearch
+# ============================================================================
+name: music4
+
+x-java-env: &java-env
+  EUREKA_ENABLED: "true"
+  EUREKA_SERVER_URL: http://eureka-server:8761/eureka
+  CONFIG_SERVER_URL: http://config-server:8888
+  RABBITMQ_ADDRESSES: amqp://${RABBITMQ_USERNAME:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
+  ELASTICSEARCH_URL: http://elasticsearch:9200
+  AI_SERVICE_URL: http://ai-service:8000
+  LOGSTASH_HOST: logstash
+  LOGSTASH_PORT: "5000"
+
+x-svc-depends: &svc-depends
+  config-server:
+    condition: service_healthy
+  eureka-server:
+    condition: service_healthy
+  rabbitmq:
+    condition: service_healthy
+  logstash:
+    condition: service_started
+
+services:
+
+  # ------------------------------------------------------------------ hạ tầng
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.22
+    container_name: music4-elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: music4-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ ELK
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.19.22
+    container_name: music4-logstash
+    environment:
+      LS_JAVA_OPTS: "-Xms256m -Xmx256m"
+      XPACK_MONITORING_ENABLED: "false"
+    volumes:
+      - ./deploy/elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    ports:
+      - "5000:5000"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.19.22
+    container_name: music4-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      NODE_OPTIONS: "--max-old-space-size=768"
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status | grep -q '\"level\":\"available\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 40
+      start_period: 60s
+    restart: unless-stopped
+
+  # Chạy một lần: tạo sẵn data view "Music4 logs" (music4-logs-*) và đặt làm mặc định trong Kibana
+  kibana-setup:
+    image: curlimages/curl:8.10.1
+    container_name: music4-kibana-setup
+    depends_on:
+      kibana:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        curl -fsS -X POST http://kibana:5601/api/data_views/data_view
+        -H 'kbn-xsrf: true' -H 'Content-Type: application/json'
+        -d '{"override":true,"data_view":{"id":"music4-logs","title":"music4-logs-*","name":"Music4 logs","timeFieldName":"@timestamp"}}'
+        && curl -fsS -X POST http://kibana:5601/api/data_views/default
+        -H 'kbn-xsrf: true' -H 'Content-Type: application/json'
+        -d '{"data_view_id":"music4-logs","force":true}'
+
+  # ------------------------------------------------------------------ Spring Cloud
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    image: music4/config-server:latest
+    container_name: music4-config-server
+    environment:
+      SERVER_PORT: "8888"
+      SPRING_PROFILES_ACTIVE: "native,elk"
+      CONFIG_REPO_PATH: file:/config-repo
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: "5000"
+    volumes:
+      - ./config-repo:/config-repo:ro
+    ports:
+      - "8888:8888"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8888/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on:
+      logstash:
+        condition: service_started
+    restart: unless-stopped
+
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    image: music4/eureka-server:latest
+    container_name: music4-eureka-server
+    environment:
+      SERVER_PORT: "8761"
+      SPRING_PROFILES_ACTIVE: "elk"
+      EUREKA_HOST: eureka-server
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: "5000"
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8761/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on:
+      logstash:
+        condition: service_started
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ 6 service nghiệp vụ
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    image: music4/user-service:latest
+    container_name: music4-user-service
+    env_file:
+      - path: ./user-service/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      <<: *java-env
+      SERVER_PORT: "8081"
+      SPRING_PROFILES_ACTIVE: "elk"
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on: *svc-depends
+    restart: unless-stopped
+
+  content-service:
+    build:
+      context: .
+      dockerfile: content-service/Dockerfile
+    image: music4/content-service:latest
+    container_name: music4-content-service
+    env_file:
+      - path: ./content-service/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      <<: *java-env
+      SERVER_PORT: "8082"
+      SPRING_PROFILES_ACTIVE: "elk"
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on: *svc-depends
+    restart: unless-stopped
+
+  engagement-service:
+    build:
+      context: .
+      dockerfile: engagement-service/Dockerfile
+    image: music4/engagement-service:latest
+    container_name: music4-engagement-service
+    env_file:
+      - path: ./engagement-service/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      <<: *java-env
+      SERVER_PORT: "8083"
+      SPRING_PROFILES_ACTIVE: "elk"
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on: *svc-depends
+    restart: unless-stopped
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: analytics-service/Dockerfile
+    image: music4/analytics-service:latest
+    container_name: music4-analytics-service
+    env_file:
+      - path: ./analytics-service/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      <<: *java-env
+      SERVER_PORT: "8084"
+      SPRING_PROFILES_ACTIVE: "elk"
+    ports:
+      - "8084:8084"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8084/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on: *svc-depends
+    restart: unless-stopped
+
+  media-service:
+    build:
+      context: .
+      dockerfile: media-service/Dockerfile
+    image: music4/media-service:latest
+    container_name: music4-media-service
+    env_file:
+      - path: ./media-service/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      <<: *java-env
+      SERVER_PORT: "8085"
+      SPRING_PROFILES_ACTIVE: "elk"
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8085/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on: *svc-depends
+    restart: unless-stopped
+
+  search-admin-service:
+    build:
+      context: .
+      dockerfile: search-admin-service/Dockerfile
+    image: music4/search-admin-service:latest
+    container_name: music4-search-admin-service
+    env_file:
+      - path: ./search-admin-service/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      <<: *java-env
+      SERVER_PORT: "8086"
+      SPRING_PROFILES_ACTIVE: "elk"
+    ports:
+      - "8086:8086"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8086/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on: 
+      <<: *svc-depends
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ AI (Python)
+  ai-service:
+    build:
+      context: ./AI-service
+      dockerfile: Dockerfile
+    image: music4/ai-service:latest
+    container_name: music4-ai-service
+    env_file:
+      - path: ./AI-service/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      EUREKA_ENABLED: "true"
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      INSTANCE_HOST: ai-service
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ai_model_cache:/root/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 20s
+      timeout: 5s
+      retries: 30
+      start_period: 180s
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ------------------------------------------------------------------ cổng vào duy nhất
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    image: music4/api-gateway:latest
+    container_name: music4-api-gateway
+    env_file:
+      - path: ./api-gateway/.env
+        required: false
+      - path: ./.env.docker
+        required: false
+    environment:
+      <<: *java-env
+      SERVER_PORT: "8080"
+      SPRING_PROFILES_ACTIVE: "elk"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 20
+      start_period: 120s
+    depends_on: 
+      config-server:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      logstash:
+        condition: service_started
+      user-service:
+        condition: service_started
+      content-service:
+        condition: service_started
+      engagement-service:
+        condition: service_started
+      analytics-service:
+        condition: service_started
+      media-service:
+        condition: service_started
+      search-admin-service:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  elasticsearch_data:
+  rabbitmq_data:
+  ai_model_cache:
