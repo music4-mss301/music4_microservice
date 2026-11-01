@@ -17,6 +17,7 @@ x-java-env: &java-env
   AI_SERVICE_URL: http://ai-service:8000
   LOGSTASH_HOST: logstash
   LOGSTASH_PORT: "5000"
+  MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
 
 x-svc-depends: &svc-depends
   config-server:
@@ -121,6 +122,15 @@ services:
         && curl -fsS -X POST http://kibana:5601/api/data_views/default
         -H 'kbn-xsrf: true' -H 'Content-Type: application/json'
         -d '{"data_view_id":"music4-logs","force":true}'
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    container_name: music4-zipkin
+    environment:
+      JAVA_OPTS: "-Xms128m -Xmx256m"
+    ports:
+      - "9411:9411"
+    restart: unless-stopped
 
   # ------------------------------------------------------------------ Spring Cloud
   config-server:
