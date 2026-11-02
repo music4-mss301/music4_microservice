@@ -56,4 +56,9 @@ datasource.properties
 
 # --- OS ---
 .DS_Store
-Thumbs.db
+Thumbs.db.env
+**/.env
+target/
+.idea/
+*.iml
+.env.docker

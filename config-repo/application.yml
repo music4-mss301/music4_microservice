@@ -1,0 +1,25 @@
+# Cấu hình DÙNG CHUNG cho mọi service, cấp qua config-server (profile native).
+# Service đọc bằng spring.config.import=optional:configserver:... ; giá trị ở đây ghi đè application.yml của service.
+logging:
+  level:
+    root: INFO
+    vn.edu.fpt.mss: DEBUG
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+
+management:
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s

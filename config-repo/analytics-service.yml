@@ -1,0 +1,5 @@
+# DEMO Config Server: đổi số này, restart analytics-service, gọi POST /api/tracking/play 2 lần liên tiếp
+# để thấy ngưỡng chống spam lượt nghe thay đổi mà không sửa code.
+app:
+  analytics:
+    play-dedupe-seconds: 30

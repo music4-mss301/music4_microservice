@@ -1,0 +1,20 @@
+server:
+  port: ${SERVER_PORT:8888}
+
+spring:
+  application:
+    name: config-server
+  profiles:
+    active: native
+  cloud:
+    config:
+      server:
+        native:
+          # Docker: mount ./config-repo vào /config-repo. Chạy local: trỏ CONFIG_REPO_PATH tới thư mục config-repo.
+          search-locations: ${CONFIG_REPO_PATH:file:../config-repo}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
