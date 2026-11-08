@@ -39,6 +39,12 @@
             <artifactId>opentelemetry-exporter-zipkin</artifactId>
         </dependency>
 
+        <!-- Prometheus Monitoring -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>io.github.openfeign</groupId>
             <artifactId>feign-micrometer</artifactId>

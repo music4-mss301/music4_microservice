@@ -134,6 +134,15 @@ public class TrackServiceImpl implements TrackService {
         if (coverImage == null || coverImage.isEmpty()) {
             throw new BadRequestException("Ảnh bìa (coverImage) không được để trống");
         }
+        if (req == null || !StringUtils.hasText(req.title())) {
+            throw new BadRequestException("Tên bài hát không được để trống");
+        }
+        if (req.title().trim().length() > 100) {
+            throw new BadRequestException("Tên bài hát không được vượt quá 100 ký tự");
+        }
+        if (req.categoryIds() == null || req.categoryIds().isEmpty()) {
+            throw new BadRequestException("Bài hát phải thuộc ít nhất 1 thể loại");
+        }
         Artist main = resolveMainArtist(req.artistId());
         Album album = resolveAlbum(req.albumId(), main);
         assertNameAvailable(album, req.title(), null);
@@ -173,11 +182,29 @@ public class TrackServiceImpl implements TrackService {
     @Override
     @Transactional
     public List<TrackResponse> saveBulk(AlbumBulkRequest req) {
+        if (req == null || req.tracks() == null || req.tracks().isEmpty()) {
+            throw new BadRequestException("Album phải có ít nhất 1 bài hát");
+        }
+        if (!StringUtils.hasText(req.coverImageKey())) {
+            throw new BadRequestException("Album phải có ảnh bìa");
+        }
         Artist currentMain = resolveMainArtist(null);
         Album album = resolveAlbum(req.albumId(), currentMain);
         Set<String> namesInRequest = new HashSet<>();
         List<Track> saved = new ArrayList<>();
         for (TrackBulkItem item : req.tracks()) {
+            if (!StringUtils.hasText(item.title())) {
+                throw new BadRequestException("Tên bài hát không được để trống");
+            }
+            if (item.title().trim().length() > 100) {
+                throw new BadRequestException("Tên bài '" + item.title() + "' không được vượt quá 100 ký tự");
+            }
+            if (!StringUtils.hasText(item.audioFileKey())) {
+                throw new BadRequestException("Bài hát '" + item.title() + "' thiếu file âm thanh");
+            }
+            if (item.categoryIds() == null || item.categoryIds().isEmpty()) {
+                throw new BadRequestException("Bài hát '" + item.title() + "' phải thuộc ít nhất 1 thể loại");
+            }
             Artist main = SecurityUtils.isAdmin() && item.artistId() != null
                     ? artistService.findActive(item.artistId()) : currentMain;
             if (!namesInRequest.add(item.title().trim().toLowerCase())) {

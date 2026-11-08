@@ -7,12 +7,16 @@ import vn.edu.fpt.mss.mediaservice.exception.BadRequestException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.Set;
 
 /**
- * Rule: kiểm tra cả content-type khai báo LẪN magic bytes thật của file
- * (chặn trường hợp đổi đuôi .exe thành .mp3). Giới hạn dung lượng theo loại.
+ * Rule: kiểm tra cả content-type khai báo, phần mở rộng LẪN magic bytes thật của file
+ * (chặn trường hợp đổi đuôi .exe thành .mp3, hoặc nội dung mã độc giả mạo đuôi file). Giới hạn dung lượng theo loại.
  */
 public final class FileValidator {
+
+    private static final Set<String> ALLOWED_IMAGE_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp", "gif");
+    private static final Set<String> ALLOWED_AUDIO_EXTENSIONS = Set.of("mp3", "wav");
 
     private FileValidator() {
     }
@@ -24,15 +28,38 @@ public final class FileValidator {
         if (file.getSize() > type.maxBytes()) {
             throw new BadRequestException("File vượt quá " + type.maxBytes() / (1024 * 1024) + "MB");
         }
+
+        // 1. Kiểm tra phần mở rộng file (extension) nếu có tên file
+        String originalFilename = file.getOriginalFilename();
+        if (originalFilename != null && !originalFilename.isBlank()) {
+            String ext = extractExtension(originalFilename);
+            Set<String> allowedExts = type == MediaType.IMAGE ? ALLOWED_IMAGE_EXTENSIONS : ALLOWED_AUDIO_EXTENSIONS;
+            if (!ext.isEmpty() && !allowedExts.contains(ext.toLowerCase())) {
+                String allowedStr = type == MediaType.IMAGE ? ".jpg, .jpeg, .png, .webp, .gif" : ".mp3, .wav";
+                throw new BadRequestException("Định dạng file không được hỗ trợ (chỉ chấp nhận " + allowedStr + ")");
+            }
+        }
+
+        // 2. Kiểm tra content-type
         String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase();
         if (!type.contentTypes().contains(contentType)) {
             throw new BadRequestException("Định dạng " + contentType + " không được hỗ trợ cho " + type.folder());
         }
+
+        // 3. Kiểm tra magic bytes thật của nội dung file
         byte[] head = readHead(file);
         boolean ok = type == MediaType.IMAGE ? isImage(head) : isAudio(head);
         if (!ok) {
-            throw new BadRequestException("Nội dung file không khớp định dạng khai báo");
+            throw new BadRequestException("Nội dung file không khớp định dạng khai báo (nghi ngờ file giả mạo)");
         }
+    }
+
+    private static String extractExtension(String filename) {
+        int dot = filename.lastIndexOf('.');
+        if (dot >= 0 && dot < filename.length() - 1) {
+            return filename.substring(dot + 1).trim();
+        }
+        return "";
     }
 
     private static byte[] readHead(MultipartFile file) {
