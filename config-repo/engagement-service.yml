@@ -1,0 +1,21 @@
+# Cấu hình riêng cho engagement-service lấy từ Config Server (profile native).
+spring:
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 5000
+
+app:
+  security:
+    public-get-paths:
+      - /api/ratings/average/**
+      - /api/comments/track/**
+      - /api/favorites/track/**
+      - /api/follows/artist/**
+      - /api/follows/user/**
+      - /api/playlists/user/**
+      - /api/playlists/*
+      - /api/playlists/*/tracks
