@@ -1,0 +1,35 @@
+# ==============================================================================
+# CẤU HÌNH RIÊNG CHO CONTENT-SERVICE (Kế thừa phần chung từ config-repo/application.yml)
+# ==============================================================================
+server:
+  port: ${SERVER_PORT:8082}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/music4_content}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+  cloud:
+    openfeign:
+      client:
+        config:
+          media-service:              # upload file lớn qua media-service
+            read-timeout: 60000
+  servlet:
+    multipart:
+      max-file-size: ${MAX_FILE_SIZE:50MB}
+      max-request-size: ${MAX_REQUEST_SIZE:60MB}
+
+app:
+  security:
+    public-get-paths:
+      - /api/tracks/**
+      - /api/albums/**
+      - /api/artists/**
+      - /api/categories/**
+
+resilience4j:
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: ${CB_TIMEOUT:60s}   # đủ cho upload 50MB qua Feign

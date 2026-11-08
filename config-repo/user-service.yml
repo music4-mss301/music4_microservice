@@ -1,0 +1,36 @@
+# ==============================================================================
+# CẤU HÌNH RIÊNG CHO USER-SERVICE (Kế thừa phần chung từ config-repo/application.yml)
+# ==============================================================================
+server:
+  port: ${SERVER_PORT:8081}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/music4_user}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+app:
+  security:
+    public-get-paths:
+      - /api/users/*
+    public-paths:
+      - /api/auth/login
+      - /api/auth/register
+      - /api/auth/refresh
+      - /api/auth/logout
+      - /api/auth/forgot-password
+      - /api/auth/reset-password
+  jwt:
+    secret: ${JWT_SECRET}                       # Base64, >= 256 bit, GIỐNG api-gateway
+    access-expiration-ms: ${JWT_EXPIRATION:3600000}
+    refresh-expiration-days: ${JWT_REFRESH_DAYS:7}
+  frontend-url: ${FRONTEND_URL:http://localhost:5173}

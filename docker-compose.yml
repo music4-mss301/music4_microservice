@@ -143,6 +143,7 @@ services:
       SERVER_PORT: "8888"
       SPRING_PROFILES_ACTIVE: "native,elk"
       CONFIG_REPO_PATH: file:/config-repo
+      RABBITMQ_ADDRESSES: amqp://${RABBITMQ_USERNAME:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
       LOGSTASH_HOST: logstash
       LOGSTASH_PORT: "5000"
     volumes:
@@ -156,6 +157,8 @@ services:
       retries: 20
       start_period: 120s
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       logstash:
         condition: service_started
     restart: unless-stopped
@@ -408,6 +411,8 @@ services:
       config-server:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
       logstash:
         condition: service_started

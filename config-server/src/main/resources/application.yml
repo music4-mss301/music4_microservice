@@ -5,16 +5,22 @@ spring:
   application:
     name: config-server
   profiles:
-    active: native
+    active: ${CONFIG_MODE:native}
+  rabbitmq:
+    addresses: ${RABBITMQ_ADDRESSES:amqp://guest:guest@localhost:5672}
   cloud:
     config:
       server:
         native:
           # Docker: mount ./config-repo vào /config-repo. Chạy local: trỏ CONFIG_REPO_PATH tới thư mục config-repo.
-          search-locations: ${CONFIG_REPO_PATH:file:../config-repo}
+          search-locations: ${CONFIG_REPO_PATH:file:../config-repo,file:./config-repo}
+        git:
+          uri: ${CONFIG_GIT_URI:https://github.com/your-username/music4-config-repo.git}
+          default-label: ${CONFIG_GIT_BRANCH:main}
+          clone-on-start: true
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,busrefresh

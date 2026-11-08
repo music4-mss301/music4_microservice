@@ -3,6 +3,7 @@ package vn.edu.fpt.mss.userservice.service.impl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ import java.util.UUID;
 
 @Slf4j
 @Service
+@RefreshScope
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
