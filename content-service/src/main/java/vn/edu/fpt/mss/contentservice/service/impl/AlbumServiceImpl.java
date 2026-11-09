@@ -78,14 +78,27 @@ public class AlbumServiceImpl implements AlbumService {
     @Override
     @Transactional
     public AlbumResponse createWithCover(String title, MultipartFile cover, Integer artistId) {
+        return createWithCoverOrKey(title, cover, null, artistId);
+    }
+
+    @Override
+    @Transactional
+    public AlbumResponse createWithCoverOrKey(String title, MultipartFile cover, String coverKey, Integer artistId) {
         if (!StringUtils.hasText(title)) {
             throw new BadRequestException("Tên album không được để trống");
         }
-        String key = null;
+        String trimmedTitle = title.trim();
+        if (trimmedTitle.length() > 100) {
+            throw new BadRequestException("Tên album không được vượt quá 100 ký tự");
+        }
+        String key = coverKey;
         if (cover != null && !cover.isEmpty()) {
             key = mediaClient.upload(cover, "images", SecurityUtils.currentUserIdOrNull()).objectKey();
         }
-        return create(new AlbumRequest(title, key, artistId));
+        if (!StringUtils.hasText(key)) {
+            throw new BadRequestException("Vui lòng tải lên ảnh bìa cho album");
+        }
+        return create(new AlbumRequest(trimmedTitle, key, artistId));
     }
 
     @Override

@@ -4,11 +4,19 @@
 server:
   port: ${SERVER_PORT:8083}
 
+# Cấu hình riêng cho engagement-service lấy từ Config Server (profile native).
 spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/music4_engagement}
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:}
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 5000
 
 app:
   security:

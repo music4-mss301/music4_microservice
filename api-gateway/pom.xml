@@ -48,6 +48,12 @@
             <artifactId>opentelemetry-exporter-zipkin</artifactId>
         </dependency>
 
+        <!-- Prometheus Monitoring -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- Spring Cloud Gateway WebFlux -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>

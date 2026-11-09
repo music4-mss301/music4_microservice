@@ -168,11 +168,18 @@ class TrackingServiceImplTest {
     // ---------------------------------------------------------------- Rule: đồng bộ vị trí nghe dở
 
     @Test
-    void syncPosition_withoutAnyListen_isNotFound() {
+    void syncPosition_withoutAnyListen_createsHistoryWithPosition() {
         login(2, "LISTENER");
         when(historyRepository.findTopByUserIdAndTrackIdOrderByListenedAtDesc(2, 10)).thenReturn(Optional.empty());
+        when(historyRepository.save(any(History.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        assertThrows(ResourceNotFoundException.class, () -> service.syncPosition(new SyncTimeRequest(10, 30)));
+        service.syncPosition(new SyncTimeRequest(10, 30));
+
+        ArgumentCaptor<History> saved = ArgumentCaptor.forClass(History.class);
+        verify(historyRepository).save(saved.capture());
+        assertEquals(2, saved.getValue().getUserId());
+        assertEquals(10, saved.getValue().getTrackId());
+        assertEquals(30, (int) saved.getValue().getPlaybackPosition());
     }
 
     @Test

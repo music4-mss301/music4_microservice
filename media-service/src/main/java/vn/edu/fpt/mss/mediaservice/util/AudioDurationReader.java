@@ -5,7 +5,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
+import java.io.InputStream;
 import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 /** Đọc thời lượng mp3 (giây) giống monolith. Không đọc được thì trả null, không chặn upload. */
 @Slf4j
@@ -18,7 +20,9 @@ public final class AudioDurationReader {
         File temp = null;
         try {
             temp = Files.createTempFile("upload-track-", ".mp3").toFile();
-            file.transferTo(temp);
+            try (InputStream in = file.getInputStream()) {
+                Files.copy(in, temp.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
             return (int) new Mp3File(temp).getLengthInSeconds();
         } catch (Exception e) {
             log.warn("Không đọc được thời lượng file {}: {}", file.getOriginalFilename(), e.getMessage());

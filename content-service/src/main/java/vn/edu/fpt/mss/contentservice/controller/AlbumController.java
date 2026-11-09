@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.mss.contentservice.dto.request.AlbumRequest;
@@ -47,14 +48,18 @@ public class AlbumController {
         return ResponseEntity.status(HttpStatus.CREATED).body(albumService.create(request));
     }
 
-    /** Tương thích FE cũ: form-data albumTitle + coverImageKey (file). */
+    /** Tương thích FE: form-data albumTitle + coverImageKey (file hoặc s3Key string). */
     @PreAuthorize("hasAnyRole('ARTIST','ADMIN')")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<AlbumResponse> createMultipart(
             @RequestParam("albumTitle") String albumTitle,
             @RequestPart(value = "coverImageKey", required = false) MultipartFile cover,
+            @RequestParam(value = "coverImageKey", required = false) String coverImageKey,
+            @RequestParam(value = "coverKey", required = false) String coverKeyAlt,
             @RequestParam(value = "artistId", required = false) Integer artistId) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(albumService.createWithCover(albumTitle, cover, artistId));
+        String key = StringUtils.hasText(coverImageKey) ? coverImageKey : coverKeyAlt;
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(albumService.createWithCoverOrKey(albumTitle, cover, key, artistId));
     }
 
     @PreAuthorize("hasAnyRole('ARTIST','ADMIN')")
