@@ -76,7 +76,7 @@ public class MediaController {
     /** Ảnh công khai (avatar, bìa). Chỉ cho đọc trong thư mục images/. */
     @GetMapping("/file")
     public ResponseEntity<StreamingResponseBody> image(@RequestParam String key) {
-        if (!key.startsWith("images/") || key.contains("..")) {
+        if ((!key.startsWith("images/") && !key.startsWith("covers/") && !key.startsWith("avatars/")) || key.contains("..")) {
             throw new BadRequestException("Chỉ được xem file ảnh");
         }
         return storageService.stream(key, null);
