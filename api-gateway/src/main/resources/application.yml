@@ -156,7 +156,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway,circuitbreakers
+        include: health,info,gateway,circuitbreakers,prometheus
   endpoint:
     health:
       show-details: always

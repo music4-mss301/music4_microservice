@@ -37,6 +37,12 @@
             <artifactId>opentelemetry-exporter-zipkin</artifactId>
         </dependency>
 
+        <!-- Prometheus Monitoring -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
         <!-- Eureka Server -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
