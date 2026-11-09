@@ -99,12 +99,13 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
             return reject(exchange, HttpStatus.NOT_FOUND, "Không tìm thấy endpoint");
         }
 
-        // 2. Cho phép preflight CORS, fallback nội bộ và healthcheck cơ bản
+        // 2. Cho phép preflight CORS, fallback nội bộ, healthcheck cơ bản và scrape của Prometheus (không có JWT)
         if (request.getMethod() == HttpMethod.OPTIONS
                 || path.startsWith("/fallback")
                 || path.equals("/actuator/health")
                 || path.startsWith("/actuator/health/")
-                || path.equals("/actuator/info")) {
+                || path.equals("/actuator/info")
+                || path.equals("/actuator/prometheus")) {
             return next.apply(exchange);
         }
 
