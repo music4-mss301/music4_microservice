@@ -26,6 +26,17 @@
     </properties>
 
     <dependencies>
+        <!-- Redis Reactive cho Distributed Rate Limiter & Token Blacklist -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
+        </dependency>
+
+        <!-- Prometheus Metrics Exporter (Chuẩn Cloud-Native Observability) -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
 
         <!-- Distributed Tracing (Micrometer + OpenTelemetry + Zipkin) -->
         <dependency>
@@ -87,6 +98,10 @@
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bus-amqp</artifactId>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

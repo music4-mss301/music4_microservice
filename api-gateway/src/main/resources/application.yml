@@ -1,23 +1,47 @@
 spring:
+  main:
+    allow-bean-definition-overriding: true
   application:
     name: api-gateway
   config:
     import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8888}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:password}
+      timeout: 500ms
   cloud:
     gateway:
       server:
         webflux:
+          httpclient:
+            connect-timeout: 3000
+            pool:
+              type: elastic
+              max-idle-time: 30s
+              max-life-time: 5m
           globalcors:
             cors-configurations:
               '[/**]':
                 allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,https://*.vercel.app}
                 allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
                 allowed-headers: "*"
-                exposed-headers: Content-Range,Accept-Ranges,Content-Length
+                exposed-headers: Content-Range,Accept-Ranges,Content-Length,X-Request-Id,X-RateLimit-Remaining,X-RateLimit-Burst-Capacity,X-RateLimit-Replenish-Rate,Retry-After
                 allow-credentials: true
                 max-age: 3600
           default-filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
           routes:
             # --- bổ sung cho FE (đứng TRƯỚC các route chung) ---
             # SSE thông báo: không bọc Circuit Breaker vì kết nối sống lâu (CB sẽ cắt và tính là lỗi)
@@ -31,6 +55,12 @@ spring:
               predicates:
                 - Path=/api/artists/*/followers
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_ENGAGEMENT_REPLENISH:30}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_ENGAGEMENT_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
                 - name: CircuitBreaker
                   args:
                     name: engagement-service
@@ -42,12 +72,24 @@ spring:
                 - Path=/api/recommendations/sync
                 - Method=POST
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 5
+                    redis-rate-limiter.burstCapacity: 10
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
                 - RewritePath=/api/recommendations/sync, /api/admin/search/reindex
             - id: user-service
               uri: ${USER_SERVICE_URI:lb://user-service}
               predicates:
                 - Path=/api/auth/**,/api/users/**
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_USER_REPLENISH:1}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_USER_BURST:10}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
                 - name: CircuitBreaker
                   args:
                     name: user-service
@@ -57,6 +99,12 @@ spring:
               predicates:
                 - Path=/api/tracks/**,/api/albums/**,/api/artists/**,/api/categories/**
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_CONTENT_REPLENISH:5}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_CONTENT_BURST:30}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
                 - name: CircuitBreaker
                   args:
                     name: content-service
@@ -66,6 +114,12 @@ spring:
               predicates:
                 - Path=/api/playlists/**,/api/favorites/**,/api/follows/**,/api/ratings/**,/api/comments/**,/api/notifications/**
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_ENGAGEMENT_REPLENISH:30}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_ENGAGEMENT_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
                 - name: CircuitBreaker
                   args:
                     name: engagement-service
@@ -75,6 +129,12 @@ spring:
               predicates:
                 - Path=/api/tracking/**,/api/history/**,/api/analytics/**,/api/recommendations/**
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_ANALYTICS_REPLENISH:30}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_ANALYTICS_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
                 - name: CircuitBreaker
                   args:
                     name: analytics-service
@@ -89,6 +149,12 @@ spring:
               predicates:
                 - Path=/api/search/**,/api/admin/**
               filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_SEARCH_REPLENISH:20}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_SEARCH_BURST:40}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
                 - name: CircuitBreaker
                   args:
                     name: search-admin-service
@@ -96,11 +162,16 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+    min-response-size: 2048
+    mime-types: application/json,application/xml,text/html,text/plain,text/css,application/javascript
 
 app:
   gateway:
     jwt-secret: ${JWT_SECRET}               # GIỐNG user-service
     gateway-secret: ${GATEWAY_SECRET:change-me-gateway-secret}
+    redis-blacklist-enabled: ${REDIS_BLACKLIST_ENABLED:true}
     # Không bắt buộc token (có token thì vẫn gắn danh tính). Service phía sau tự kiểm tra quyền chi tiết.
     public-paths:
       - "POST:/api/auth/**"
@@ -142,24 +213,35 @@ resilience4j:
   circuitbreaker:
     configs:
       default:
-        sliding-window-size: 10
-        minimum-number-of-calls: 5
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
         failure-rate-threshold: 50
+        slow-call-duration-threshold: 4s
+        slow-call-rate-threshold: 80
         wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
         register-health-indicator: true
   timelimiter:
     configs:
       default:
-        timeout-duration: ${CB_TIMEOUT:70s}   # > timeout upload ở content-service
+        timeout-duration: ${CB_DEFAULT_TIMEOUT:5s}   # Fail-fast 5s cho mọi API thông thường
+    instances:
+      content-service:
+        timeout-duration: ${CB_TIMEOUT:70s}          # Riêng content-service cho phép 70s để xử lý upload
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway,circuitbreakers,prometheus
+        include: health,info,prometheus,gateway,circuitbreakers,refresh,busrefresh
   endpoint:
     health:
-      show-details: always
+      show-details: when_authorized
+  health:
+    redis:
+      enabled: ${REDIS_HEALTH_ENABLED:false}
+    rabbit:
+      enabled: ${RABBIT_HEALTH_ENABLED:false}
   tracing:
     sampling:
       probability: ${TRACING_SAMPLING_PROBABILITY:1.0}

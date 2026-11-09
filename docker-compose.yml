@@ -4,7 +4,7 @@
 # - Database: PostgreSQL trên Neon, URL/mật khẩu đọc từ <service>/.env (không có container DB).
 # - Bí mật dùng chung (JWT_SECRET, GATEWAY_SECRET, INTERNAL_TOKEN, AI_API_KEY): .env.docker (mẫu: .env.docker.example).
 # - Các container gọi nhau bằng TÊN (eureka-server, rabbitmq, elasticsearch...), không dùng localhost.
-# - Chỉ cần RabbitMQ + Elasticsearch để chạy service trong IntelliJ:  docker compose up -d rabbitmq elasticsearch
+# - Chỉ cần RabbitMQ + Elasticsearch + Redis để chạy service trong IntelliJ:  docker compose up -d rabbitmq elasticsearch redis
 # ============================================================================
 name: music4
 
@@ -14,6 +14,9 @@ x-java-env: &java-env
   CONFIG_SERVER_URL: http://config-server:8888
   RABBITMQ_ADDRESSES: amqp://${RABBITMQ_USERNAME:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
   ELASTICSEARCH_URL: http://elasticsearch:9200
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
   AI_SERVICE_URL: http://ai-service:8000
   LOGSTASH_HOST: logstash
   LOGSTASH_PORT: "5000"
@@ -44,7 +47,7 @@ services:
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -63,13 +66,43 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 20
       start_period: 20s
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: music4-redis
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --requirepass
+      - ${REDIS_PASSWORD:-password}
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+    restart: unless-stopped
   # ------------------------------------------------------------------ ELK
   logstash:
     image: docker.elastic.co/logstash/logstash:8.19.22
@@ -98,7 +131,7 @@ services:
       elasticsearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:5601/api/status | grep -q '\"level\":\"available\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:5601/api/status | grep -q '\"level\":\"available\"' || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 40
@@ -113,7 +146,7 @@ services:
       kibana:
         condition: service_healthy
     restart: "no"
-    entrypoint: ["/bin/sh", "-c"]
+    entrypoint: [ "/bin/sh", "-c" ]
     command:
       - >
         curl -fsS -X POST http://kibana:5601/api/data_views/data_view
@@ -172,6 +205,7 @@ services:
       SERVER_PORT: "8888"
       SPRING_PROFILES_ACTIVE: "native,elk"
       CONFIG_REPO_PATH: file:/config-repo
+      RABBITMQ_ADDRESSES: amqp://${RABBITMQ_USERNAME:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672
       LOGSTASH_HOST: logstash
       LOGSTASH_PORT: "5000"
     volumes:
@@ -179,12 +213,14 @@ services:
     ports:
       - "8888:8888"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8888/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8888/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
       start_period: 120s
     depends_on:
+      rabbitmq:
+        condition: service_healthy
       logstash:
         condition: service_started
     restart: unless-stopped
@@ -204,7 +240,7 @@ services:
     ports:
       - "8761:8761"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8761/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8761/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
@@ -235,7 +271,7 @@ services:
     ports:
       - "8081:8081"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
@@ -261,7 +297,7 @@ services:
     ports:
       - "8082:8082"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8082/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
@@ -287,7 +323,7 @@ services:
     ports:
       - "8083:8083"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8083/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
@@ -313,7 +349,7 @@ services:
     ports:
       - "8084:8084"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8084/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8084/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
@@ -339,7 +375,7 @@ services:
     ports:
       - "8085:8085"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8085/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8085/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
@@ -365,12 +401,12 @@ services:
     ports:
       - "8086:8086"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8086/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8086/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
       start_period: 120s
-    depends_on: 
+    depends_on:
       <<: *svc-depends
       elasticsearch:
         condition: service_healthy
@@ -398,7 +434,7 @@ services:
     volumes:
       - ai_model_cache:/root/.cache/huggingface
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')" ]
       interval: 20s
       timeout: 5s
       retries: 30
@@ -425,18 +461,24 @@ services:
       <<: *java-env
       SERVER_PORT: "8080"
       SPRING_PROFILES_ACTIVE: "elk"
+      REDIS_BLACKLIST_ENABLED: "true"
+      REDIS_HEALTH_ENABLED: "true"
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1" ]
       interval: 20s
       timeout: 5s
       retries: 20
       start_period: 120s
-    depends_on: 
+    depends_on:
       config-server:
         condition: service_healthy
       eureka-server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       logstash:
         condition: service_started
@@ -457,6 +499,7 @@ services:
 volumes:
   elasticsearch_data:
   rabbitmq_data:
+  redis_data:
   ai_model_cache:
   prometheus-data:
   grafana-data:

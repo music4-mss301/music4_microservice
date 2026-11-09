@@ -44,9 +44,14 @@
         </dependency>
 
         <!-- Eureka Server -->
+        <!-- Spring Cloud Config Server + Bus AMQP (đồng bộ cấu hình qua RabbitMQ) -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-config-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-bus-amqp</artifactId>
         </dependency>
 
         <!-- Spring Boot Web -->

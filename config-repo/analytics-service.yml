@@ -1,5 +1,26 @@
-# DEMO Config Server: đổi số này, restart analytics-service, gọi POST /api/tracking/play 2 lần liên tiếp
-# để thấy ngưỡng chống spam lượt nghe thay đổi mà không sửa code.
+# ==============================================================================
+# CẤU HÌNH RIÊNG CHO ANALYTICS-SERVICE (Kế thừa phần chung từ config-repo/application.yml)
+# ==============================================================================
+server:
+  port: ${SERVER_PORT:8084}
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/music4_analytics}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:}
+
 app:
+  security:
+    public-get-paths:
+      - /api/recommendations
+      - /api/analytics/top-tracks
+    public-paths:
+      - /api/tracking/play
+      - /api/tracking/history
   analytics:
+    # DEMO Config Server (Zero-Downtime Hot Reload):
+    # 1. Đổi số play-dedupe-seconds bên dưới (ví dụ từ 30 sang 120).
+    # 2. Gọi POST http://localhost:8084/actuator/refresh (hoặc POST http://localhost:8888/actuator/busrefresh) KHÔNG cần restart!
+    # 3. Gọi POST /api/tracking/play 2 lần liên tiếp để thấy ngưỡng chống spam lượt nghe thay đổi ngay lập tức.
     play-dedupe-seconds: 30

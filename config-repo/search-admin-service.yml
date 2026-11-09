@@ -1,0 +1,18 @@
+# ==============================================================================
+# CẤU HÌNH RIÊNG CHO SEARCH-ADMIN-SERVICE (Kế thừa phần chung từ config-repo/application.yml)
+# ==============================================================================
+server:
+  port: ${SERVER_PORT:8086}
+
+app:
+  security:
+    public-get-paths:
+      - /api/search/**
+  search:
+    es-url: ${ELASTICSEARCH_URL:http://localhost:9200}
+    es-username: ${ELASTICSEARCH_USERNAME:}
+    es-password: ${ELASTICSEARCH_PASSWORD:}
+    ai-url: ${AI_SERVICE_URL:http://localhost:8000}
+    ai-api-key: ${AI_API_KEY:}
+    vector-dims: 384
+    embed-retry-ms: 600000

@@ -1,8 +1,235 @@
-# Ví dụ cấu hình riêng cho gateway lấy từ Config Server.
+# ==============================================================================
+# CẤU HÌNH RIÊNG CHO API-GATEWAY (Kế thừa phần chung từ config-repo/application.yml)
+# ==============================================================================
+server:
+  port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+    min-response-size: 2048
+    mime-types: application/json,application/xml,text/html,text/plain,text/css,application/javascript
+
 spring:
+  main:
+    allow-bean-definition-overriding: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:password}
+      timeout: 500ms
   cloud:
     gateway:
       server:
         webflux:
           httpclient:
             connect-timeout: 3000
+            pool:
+              type: elastic
+              max-idle-time: 30s
+              max-life-time: 5m
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowed-origin-patterns: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,https://*.vercel.app}
+                allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+                allowed-headers: "*"
+                exposed-headers: Content-Range,Accept-Ranges,Content-Length,X-Request-Id,X-RateLimit-Remaining,X-RateLimit-Burst-Capacity,X-RateLimit-Replenish-Rate,Retry-After
+                allow-credentials: true
+                max-age: 3600
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
+          routes:
+            # --- bổ sung cho FE (đứng TRƯỚC các route chung) ---
+            # SSE thông báo: không bọc Circuit Breaker vì kết nối sống lâu (CB sẽ cắt và tính là lỗi)
+            - id: engagement-sse
+              uri: ${ENGAGEMENT_SERVICE_URI:lb://engagement-service}
+              predicates:
+                - Path=/api/notifications/subscribe/**
+            # Danh sách người theo dõi nghệ sĩ nằm ở engagement
+            - id: artist-followers
+              uri: ${ENGAGEMENT_SERVICE_URI:lb://engagement-service}
+              predicates:
+                - Path=/api/artists/*/followers
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_ENGAGEMENT_REPLENISH:30}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_ENGAGEMENT_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
+                - name: CircuitBreaker
+                  args:
+                    name: engagement-service
+                    fallbackUri: forward:/fallback/engagement-service
+            # Nút "Đồng bộ dữ liệu AI" của dashboard: chuyển thành reindex Elasticsearch (ADMIN)
+            - id: recommendations-sync
+              uri: ${SEARCH_ADMIN_SERVICE_URI:lb://search-admin-service}
+              predicates:
+                - Path=/api/recommendations/sync
+                - Method=POST
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_SEARCH_REPLENISH:20}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_SEARCH_BURST:40}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
+                - RewritePath=/api/recommendations/sync, /api/admin/search/reindex
+            - id: user-service
+              uri: ${USER_SERVICE_URI:lb://user-service}
+              predicates:
+                - Path=/api/auth/**,/api/users/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_USER_REPLENISH:1}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_USER_BURST:10}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
+                - name: CircuitBreaker
+                  args:
+                    name: user-service
+                    fallbackUri: forward:/fallback/user-service
+            - id: content-service
+              uri: ${CONTENT_SERVICE_URI:lb://content-service}
+              predicates:
+                - Path=/api/tracks/**,/api/albums/**,/api/artists/**,/api/categories/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_CONTENT_REPLENISH:5}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_CONTENT_BURST:30}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
+                - name: CircuitBreaker
+                  args:
+                    name: content-service
+                    fallbackUri: forward:/fallback/content-service
+            - id: engagement-service
+              uri: ${ENGAGEMENT_SERVICE_URI:lb://engagement-service}
+              predicates:
+                - Path=/api/playlists/**,/api/favorites/**,/api/follows/**,/api/ratings/**,/api/comments/**,/api/notifications/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_ENGAGEMENT_REPLENISH:30}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_ENGAGEMENT_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
+                - name: CircuitBreaker
+                  args:
+                    name: engagement-service
+                    fallbackUri: forward:/fallback/engagement-service
+            - id: analytics-service
+              uri: ${ANALYTICS_SERVICE_URI:lb://analytics-service}
+              predicates:
+                - Path=/api/tracking/**,/api/history/**,/api/analytics/**,/api/recommendations/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_ANALYTICS_REPLENISH:30}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_ANALYTICS_BURST:60}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
+                - name: CircuitBreaker
+                  args:
+                    name: analytics-service
+                    fallbackUri: forward:/fallback/analytics-service
+            - id: media-service
+              uri: ${MEDIA_SERVICE_URI:lb://media-service}
+              predicates:
+                - Path=/api/media/**
+              # media: không bọc CB vì stream/upload kéo dài; lỗi trả thẳng từ service
+            - id: search-admin-service
+              uri: ${SEARCH_ADMIN_SERVICE_URI:lb://search-admin-service}
+              predicates:
+                - Path=/api/search/**,/api/admin/**
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: ${RATE_LIMIT_SEARCH_REPLENISH:20}
+                    redis-rate-limiter.burstCapacity: ${RATE_LIMIT_SEARCH_BURST:40}
+                    redis-rate-limiter.requestedTokens: 1
+                    key-resolver: "#{@userOrIpKeyResolver}"
+                - name: CircuitBreaker
+                  args:
+                    name: search-admin-service
+                    fallbackUri: forward:/fallback/search-admin-service
+
+app:
+  gateway:
+    jwt-secret: ${JWT_SECRET}               # GIỐNG user-service
+    gateway-secret: ${GATEWAY_SECRET:change-me-gateway-secret}
+    redis-blacklist-enabled: ${REDIS_BLACKLIST_ENABLED:true}
+    # Không bắt buộc token (có token thì vẫn gắn danh tính). Service phía sau tự kiểm tra quyền chi tiết.
+    public-paths:
+      - "POST:/api/auth/**"
+      - "GET:/api/users/*"
+      - "GET:/api/tracks/**"
+      - "GET:/api/albums/**"
+      - "GET:/api/artists/**"
+      - "GET:/api/categories/**"
+      - "GET:/api/search/**"
+      - "GET:/api/media/stream/preview"
+      - "GET:/api/media/file"
+      - "POST:/api/tracking/play"
+      - "POST:/api/tracking/history"
+      - "GET:/api/recommendations"
+      - "GET:/api/analytics/top-tracks"
+      - "GET:/api/ratings/average/**"
+      - "GET:/api/comments/track/**"
+      - "GET:/api/favorites/track/**"
+      - "GET:/api/follows/artist/**"
+      - "GET:/api/follows/user/**"
+      - "GET:/api/playlists/user/**"
+      - "GET:/api/playlists/*"
+      - "GET:/api/playlists/*/tracks"
+    # Thẻ <audio> không gửi được header Authorization => cho phép ?token= riêng cho stream
+    query-token-paths:
+      - /api/notifications/subscribe/*
+      - /api/media/stream
+      - /api/tracks/stream/*
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 4s
+        slow-call-rate-threshold: 80
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: ${CB_DEFAULT_TIMEOUT:5s}   # Fail-fast 5s cho mọi API thông thường
+    instances:
+      content-service:
+        timeout-duration: ${CB_TIMEOUT:70s}          # Riêng content-service cho phép 70s để xử lý upload
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway,circuitbreakers,refresh,busrefresh
+  endpoint:
+    health:
+      show-details: when_authorized
+  health:
+    redis:
+      enabled: ${REDIS_HEALTH_ENABLED:false}
+    rabbit:
+      enabled: ${RABBIT_HEALTH_ENABLED:false}
