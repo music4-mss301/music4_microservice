@@ -2,6 +2,7 @@ package vn.edu.fpt.mss.analyticsservice.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.context.config.annotation.RefreshScope;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
+@RefreshScope
 @RequiredArgsConstructor
 public class TrackingServiceImpl implements TrackingService {
 
@@ -65,7 +67,11 @@ public class TrackingServiceImpl implements TrackingService {
     public void syncPosition(SyncTimeRequest req) {
         Integer userId = SecurityUtils.requireUser().id();
         History history = historyRepository.findTopByUserIdAndTrackIdOrderByListenedAtDesc(userId, req.trackId())
-                .orElseThrow(() -> new ResourceNotFoundException("Chưa có lượt nghe nào của bài này để đồng bộ"));
+                .orElseGet(() -> historyRepository.save(History.builder()
+                        .userId(userId)
+                        .trackId(req.trackId())
+                        .playbackPosition(req.position())
+                        .build()));
         history.setPlaybackPosition(req.position());
     }
 

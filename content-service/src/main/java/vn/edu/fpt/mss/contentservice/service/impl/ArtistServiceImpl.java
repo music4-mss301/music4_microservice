@@ -6,12 +6,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+import vn.edu.fpt.mss.contentservice.client.MediaClient;
+import vn.edu.fpt.mss.contentservice.dto.client.MediaUploadResponse;
 import vn.edu.fpt.mss.contentservice.dto.request.ArtistUpdateRequest;
 import vn.edu.fpt.mss.contentservice.dto.request.CreateArtistProfileRequest;
 import vn.edu.fpt.mss.contentservice.dto.response.*;
 import vn.edu.fpt.mss.contentservice.entity.Artist;
 import vn.edu.fpt.mss.contentservice.event.EventPublisher;
 import vn.edu.fpt.mss.contentservice.event.EventTypes;
+import vn.edu.fpt.mss.contentservice.exception.BadRequestException;
 import vn.edu.fpt.mss.contentservice.exception.BusinessException;
 import vn.edu.fpt.mss.contentservice.exception.ForbiddenException;
 import vn.edu.fpt.mss.contentservice.exception.ResourceNotFoundException;
@@ -36,6 +40,7 @@ public class ArtistServiceImpl implements ArtistService {
     private final TrackRepository trackRepository;
     private final TrackArtistRepository trackArtistRepository;
     private final EventPublisher eventPublisher;
+    private final MediaClient mediaClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -94,6 +99,34 @@ public class ArtistServiceImpl implements ArtistService {
         }
         if (req.gender() != null) {
             artist.setGender(req.gender());
+        }
+        eventPublisher.publish(EventTypes.ARTIST_UPDATED, ContentMapper.toArtistEvent(artist));
+        return ContentMapper.toArtistResponse(artist);
+    }
+
+    @Override
+    @Transactional
+    public ArtistResponse updateMultipart(Integer id, String name, MultipartFile img, MultipartFile cover, Boolean gender) {
+        Artist artist = findActive(id);
+        SecurityUtils.requireOwnerOrAdmin(artist.getUserId());
+        if (StringUtils.hasText(name)) {
+            String trimmed = name.trim();
+            if (trimmed.length() > 100) {
+                throw new BadRequestException("Tên nghệ sĩ không được vượt quá 100 ký tự");
+            }
+            artist.setName(trimmed);
+        }
+        Integer uploader = SecurityUtils.currentUserIdOrNull();
+        if (img != null && !img.isEmpty()) {
+            MediaUploadResponse res = mediaClient.upload(img, "images", uploader);
+            artist.setImg(res.objectKey());
+        }
+        if (cover != null && !cover.isEmpty()) {
+            MediaUploadResponse res = mediaClient.upload(cover, "images", uploader);
+            artist.setCover(res.objectKey());
+        }
+        if (gender != null) {
+            artist.setGender(gender);
         }
         eventPublisher.publish(EventTypes.ARTIST_UPDATED, ContentMapper.toArtistEvent(artist));
         return ContentMapper.toArtistResponse(artist);

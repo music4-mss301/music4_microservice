@@ -4,8 +4,8 @@ import java.util.Set;
 
 /** folder = prefix trên S3. type trên API giữ như cũ: images | tracks. */
 public enum MediaType {
-    IMAGE("images", 5L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp", "image/gif")),
-    AUDIO("tracks", 50L * 1024 * 1024, Set.of("audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave"));
+    IMAGE("images", 5L * 1024 * 1024, Set.of("image/jpeg", "image/png", "image/webp", "image/gif", "image/pjpeg", "image/jfif", "application/octet-stream")),
+    AUDIO("tracks", 50L * 1024 * 1024, Set.of("audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/wave", "audio/vnd.wave", "audio/x-pn-wav", "application/octet-stream"));
 
     private final String folder;
     private final long maxBytes;

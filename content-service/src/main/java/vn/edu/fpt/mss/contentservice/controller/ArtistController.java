@@ -3,9 +3,11 @@ package vn.edu.fpt.mss.contentservice.controller;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.mss.contentservice.dto.request.ArtistUpdateRequest;
 import vn.edu.fpt.mss.contentservice.dto.response.ArtistDetailResponse;
 import vn.edu.fpt.mss.contentservice.dto.response.ArtistResponse;
@@ -53,9 +55,20 @@ public class ArtistController {
     }
 
     @PreAuthorize("hasAnyRole('ARTIST','ADMIN')")
-    @PatchMapping("/{id}")
+    @PatchMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ArtistResponse update(@PathVariable Integer id, @Valid @RequestBody ArtistUpdateRequest request) {
         return artistService.update(id, request);
+    }
+
+    @PreAuthorize("hasAnyRole('ARTIST','ADMIN')")
+    @PatchMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ArtistResponse updateMultipart(
+            @PathVariable Integer id,
+            @RequestParam(value = "name", required = false) String name,
+            @RequestPart(value = "img", required = false) MultipartFile img,
+            @RequestPart(value = "cover", required = false) MultipartFile cover,
+            @RequestParam(value = "gender", required = false) Boolean gender) {
+        return artistService.updateMultipart(id, name, img, cover, gender);
     }
 
     @PreAuthorize("hasRole('ADMIN')")

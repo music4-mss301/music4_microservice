@@ -1,20 +1,84 @@
-# Cấu hình DÙNG CHUNG cho mọi service, cấp qua config-server (profile native).
-# Service đọc bằng spring.config.import=optional:configserver:... ; giá trị ở đây ghi đè application.yml của service.
-logging:
-  level:
-    root: INFO
-    vn.edu.fpt.mss: DEBUG
-  pattern:
-    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+# ==============================================================================
+# CẤU HÌNH DÙNG CHUNG CHO TOÀN BỘ 7 MICROSERVICES (Single Source of Truth)
+# Cấp phát tự động qua Config Server. Mọi service kế thừa từ file này,
+# sau đó từng file <tên-service>.yml sẽ ghi đè/bổ sung phần riêng của service đó.
+# ==============================================================================
 
-management:
-  tracing:
-    sampling:
-      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
-  zipkin:
-    tracing:
-      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+spring:
+  # 1. Connection Pool (HikariCP) & Driver dùng chung cho các service có PostgreSQL
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:5}
+      max-lifetime: 300000
+      connection-timeout: 60000   # Neon tự ngủ khi rảnh, lần kết nối đầu cần vài giây
 
+  # 2. JPA / Hibernate chuẩn hóa
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_batch_fetch_size: 50
+
+  # 3. Flyway Database Migration
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  # 4. RabbitMQ Event Bus + Retry & Dead-Letter Queue (DLQ)
+  rabbitmq:
+    addresses: ${RABBITMQ_ADDRESSES:amqp://guest:guest@localhost:5672}
+    listener:
+      simple:
+        default-requeue-rejected: false   # lỗi sau khi retry => vào DLQ
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2s
+          multiplier: 2
+
+  # 5. Spring Cloud Bus & OpenFeign + Circuit Breaker mặc định
+  cloud:
+    bus:
+      enabled: true
+      refresh:
+        enabled: true
+    openfeign:
+      circuitbreaker:
+        enabled: true
+      client:
+        config:
+          default:
+            connect-timeout: 2000
+            read-timeout: 5000
+
+# 6. Bảo mật nội bộ dùng chung (Gateway Secret & Internal Token giữa các service)
+app:
+  security:
+    gateway-secret: ${GATEWAY_SECRET:}
+    internal-token: ${INTERNAL_TOKEN:change-me-internal-token}
+
+# 7. Service Discovery (Eureka Client)
+eureka:
+  client:
+    enabled: ${EUREKA_ENABLED:true}
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka}
+  instance:
+    prefer-ip-address: true
+
+# 8. URL tĩnh khi chạy không có Eureka (ví dụ môi trường Render)
+services:
+  user-service.url: ${USER_SERVICE_URL:}
+  content-service.url: ${CONTENT_SERVICE_URL:}
+  engagement-service.url: ${ENGAGEMENT_SERVICE_URL:}
+  analytics-service.url: ${ANALYTICS_SERVICE_URL:}
+  media-service.url: ${MEDIA_SERVICE_URL:}
+  search-admin-service.url: ${SEARCH_ADMIN_SERVICE_URL:}
+
+# 9. Fault Tolerance (Resilience4j Circuit Breaker & TimeLimiter)
 resilience4j:
   circuitbreaker:
     configs:
@@ -23,3 +87,40 @@ resilience4j:
         minimum-number-of-calls: 5
         failure-rate-threshold: 50
         wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        register-health-indicator: true
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: ${CB_TIMEOUT:5s}
+
+# 10. Observability: Actuator (bật sẵn refresh & busrefresh) + Distributed Tracing (Zipkin)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,refresh,busrefresh,prometheus
+  endpoint:
+    health:
+      show-details: always
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLING_PROBABILITY:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+
+# 11. Logging kèm TraceId / SpanId cho ELK
+logging:
+  level:
+    root: INFO
+    vn.edu.fpt.mss: DEBUG
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+
+# 12. OpenAPI / Swagger UI
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

@@ -40,8 +40,8 @@ spring:
       client:
         config:
           default:
-            connect-timeout: 2000
-            read-timeout: 5000
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT:2000}
+            read-timeout: ${FEIGN_READ_TIMEOUT:5000}
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -109,7 +109,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics,circuitbreakers
+        include: health,info,metrics,circuitbreakers,prometheus
   endpoint:
     health:
       show-details: always

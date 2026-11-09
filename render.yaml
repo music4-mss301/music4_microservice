@@ -1,0 +1,228 @@
+# ============================================================================
+# Music4 (MSS301) - Render Blueprint: 7 web service Docker (gói free, Singapore).
+# Không deploy Eureka, Config Server, AI-service, ELK, Zipkin, Prometheus:
+#   - Các service gọi nhau bằng URL công khai (*_SERVICE_URL cho Feign, *_SERVICE_URI cho gateway).
+#   - Biến sync:false (khai báo ở service, KHÔNG nằm trong envVarGroups) phải nhập tay trên Render Dashboard.
+# Đánh thức 7 service (gói free ngủ sau 15 phút): deploy/render/warmup.ps1 | deploy/render/warmup.sh
+# ============================================================================
+services:
+  # ---------------------------------------------------------------- api-gateway
+  - type: web
+    name: music4-mss301-gateway
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./api-gateway/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health/liveness
+    autoDeployTrigger: "off"
+    envVars:
+      - fromGroup: music4-shared
+      # Tùy chọn (không bắt buộc, gateway fail-open khi không có Redis): REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
+      # (rate limit + blacklist token). CORS_ALLOWED_ORIGINS mặc định đã cho phép http://localhost:5173 và https://*.vercel.app.
+
+  # ---------------------------------------------------------------- user-service
+  - type: web
+    name: music4-mss301-user
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./user-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health/liveness
+    autoDeployTrigger: "off"
+    envVars:
+      - fromGroup: music4-shared
+      - key: DB_USERNAME
+        value: neondb_owner
+      - key: DB_URL
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: RABBITMQ_ADDRESSES
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+
+  # ---------------------------------------------------------------- content-service
+  - type: web
+    name: music4-mss301-content
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./content-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health/liveness
+    autoDeployTrigger: "off"
+    envVars:
+      - fromGroup: music4-shared
+      - key: DB_USERNAME
+        value: neondb_owner
+      - key: DB_URL
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: RABBITMQ_ADDRESSES
+        sync: false
+
+  # ---------------------------------------------------------------- engagement-service
+  - type: web
+    name: music4-mss301-engagement
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./engagement-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health/liveness
+    autoDeployTrigger: "off"
+    envVars:
+      - fromGroup: music4-shared
+      - key: DB_USERNAME
+        value: neondb_owner
+      - key: DB_URL
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: RABBITMQ_ADDRESSES
+        sync: false
+
+  # ---------------------------------------------------------------- analytics-service
+  - type: web
+    name: music4-mss301-analytics
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./analytics-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health/liveness
+    autoDeployTrigger: "off"
+    envVars:
+      - fromGroup: music4-shared
+      - key: DB_USERNAME
+        value: neondb_owner
+      - key: DB_URL
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: RABBITMQ_ADDRESSES
+        sync: false
+
+  # ---------------------------------------------------------------- media-service
+  - type: web
+    name: music4-mss301-media
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./media-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health/liveness
+    autoDeployTrigger: "off"
+    envVars:
+      - fromGroup: music4-shared
+      - key: DB_USERNAME
+        value: neondb_owner
+      - key: AWS_REGION
+        value: ap-southeast-1
+      - key: DB_URL
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: RABBITMQ_ADDRESSES
+        sync: false
+      - key: ACCESS_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: AWS_S3_BUCKET
+        sync: false
+
+  # ---------------------------------------------------------------- search-admin-service (không có DB)
+  - type: web
+    name: music4-mss301-search
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./search-admin-service/Dockerfile
+    dockerContext: .
+    healthCheckPath: /actuator/health/liveness
+    autoDeployTrigger: "off"
+    envVars:
+      - fromGroup: music4-shared
+      - key: RABBITMQ_ADDRESSES
+        sync: false
+      # Elasticsearch bắt buộc cho tìm kiếm (Elastic Cloud, Bonsai...): mặc định localhost:9200 không tồn tại trên Render.
+      - key: ELASTICSEARCH_URL
+        sync: false
+      - key: ELASTICSEARCH_USERNAME
+        sync: false
+      - key: ELASTICSEARCH_PASSWORD
+        sync: false
+
+envVarGroups:
+  - name: music4-shared
+    envVars:
+      # --- bí mật dùng chung: Render tự sinh MỘT lần, mọi service trong nhóm dùng cùng giá trị
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GATEWAY_SECRET
+        generateValue: true
+      - key: INTERNAL_TOKEN
+        generateValue: true
+      # --- tắt hạ tầng không có trên Render
+      - key: EUREKA_ENABLED
+        value: "false"
+      - key: SPRING_CLOUD_CONFIG_ENABLED
+        value: "false"
+      - key: MANAGEMENT_TRACING_ENABLED
+        value: "false"
+      - key: MANAGEMENT_HEALTH_MAIL_ENABLED
+        value: "false"
+      - key: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+        value: "true"
+      # --- runtime (RAM 512MB của gói free)
+      - key: SERVER_PORT
+        value: "10000"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-Xmx280m -XX:+UseSerialGC -XX:MaxMetaspaceSize=128m -Xss512k -XX:TieredStopAtLevel=1"
+      - key: DB_POOL_SIZE
+        value: "3"
+      - key: SPRINGDOC_API_DOCS_ENABLED
+        value: "false"
+      - key: SPRINGDOC_SWAGGER_UI_ENABLED
+        value: "false"
+      # --- timeout đủ cho cold start của gói free (service ngủ sau 15 phút không có request)
+      - key: FEIGN_CONNECT_TIMEOUT
+        value: "10000"
+      - key: FEIGN_READ_TIMEOUT
+        value: "60000"
+      - key: CB_TIMEOUT
+        value: 70s
+      # --- URL tĩnh: *_SERVICE_URL cho Feign, *_SERVICE_URI cho api-gateway
+      - key: USER_SERVICE_URL
+        value: https://music4-mss301-user.onrender.com
+      - key: USER_SERVICE_URI
+        value: https://music4-mss301-user.onrender.com
+      - key: CONTENT_SERVICE_URL
+        value: https://music4-mss301-content.onrender.com
+      - key: CONTENT_SERVICE_URI
+        value: https://music4-mss301-content.onrender.com
+      - key: ENGAGEMENT_SERVICE_URL
+        value: https://music4-mss301-engagement.onrender.com
+      - key: ENGAGEMENT_SERVICE_URI
+        value: https://music4-mss301-engagement.onrender.com
+      - key: ANALYTICS_SERVICE_URL
+        value: https://music4-mss301-analytics.onrender.com
+      - key: ANALYTICS_SERVICE_URI
+        value: https://music4-mss301-analytics.onrender.com
+      - key: MEDIA_SERVICE_URL
+        value: https://music4-mss301-media.onrender.com
+      - key: MEDIA_SERVICE_URI
+        value: https://music4-mss301-media.onrender.com
+      - key: SEARCH_ADMIN_SERVICE_URL
+        value: https://music4-mss301-search.onrender.com
+      - key: SEARCH_ADMIN_SERVICE_URI
+        value: https://music4-mss301-search.onrender.com

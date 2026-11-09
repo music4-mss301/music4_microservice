@@ -1,5 +1,6 @@
 package vn.edu.fpt.mss.contentservice.service;
 
+import org.springframework.web.multipart.MultipartFile;
 import vn.edu.fpt.mss.contentservice.dto.request.ArtistUpdateRequest;
 import vn.edu.fpt.mss.contentservice.dto.request.CreateArtistProfileRequest;
 import vn.edu.fpt.mss.contentservice.dto.response.*;
@@ -19,6 +20,8 @@ public interface ArtistService {
     ArtistResponse getMine();
 
     ArtistResponse update(Integer id, ArtistUpdateRequest request);
+
+    ArtistResponse updateMultipart(Integer id, String name, MultipartFile img, MultipartFile cover, Boolean gender);
 
     void delete(Integer id);
 
