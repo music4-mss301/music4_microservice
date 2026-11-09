@@ -40,8 +40,8 @@ spring:
       client:
         config:
           default:
-            connect-timeout: 2000
-            read-timeout: 5000
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT:2000}
+            read-timeout: ${FEIGN_READ_TIMEOUT:5000}
 
 server:
   port: ${SERVER_PORT:8084}
