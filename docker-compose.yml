@@ -140,8 +140,7 @@ services:
       - "9090:9090"
     volumes:
       - ./deploy/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - prometheus-data:/prometheus
     restart: unless-stopped
 
   grafana:
@@ -151,10 +150,13 @@ services:
       - "3000:3000"
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
+    env_file:
+      - path: ./.env.docker
+        required: false
     volumes:
       - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
     restart: unless-stopped
@@ -456,3 +458,5 @@ volumes:
   elasticsearch_data:
   rabbitmq_data:
   ai_model_cache:
+  prometheus-data:
+  grafana-data:

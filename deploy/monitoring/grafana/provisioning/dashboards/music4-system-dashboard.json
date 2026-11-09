@@ -122,7 +122,7 @@
         {
           "datasource": { "type": "prometheus", "uid": "Prometheus" },
           "editorMode": "code",
-          "expr": "count(up == 1)",
+          "expr": "count(up{job!=\"prometheus\"} == 1)",
           "legendFormat": "Active Services",
           "range": true,
           "refId": "A"
