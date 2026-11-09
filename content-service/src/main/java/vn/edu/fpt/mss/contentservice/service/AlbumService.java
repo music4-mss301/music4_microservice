@@ -19,6 +19,8 @@ public interface AlbumService {
 
     AlbumResponse createWithCover(String title, MultipartFile cover, Integer artistId);
 
+    AlbumResponse createWithCoverOrKey(String title, MultipartFile cover, String coverKey, Integer artistId);
+
     AlbumResponse update(Integer id, AlbumRequest request);
 
     void delete(Integer id);

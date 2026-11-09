@@ -132,6 +132,35 @@ services:
       - "9411:9411"
     restart: unless-stopped
 
+  # ------------------------------------------------------------------ Monitoring (Prometheus & Grafana)
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: music4-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: music4-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    env_file:
+      - path: ./.env.docker
+        required: false
+    volumes:
+      - ./deploy/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
   # ------------------------------------------------------------------ Spring Cloud
   config-server:
     build:
@@ -429,3 +458,5 @@ volumes:
   elasticsearch_data:
   rabbitmq_data:
   ai_model_cache:
+  prometheus-data:
+  grafana-data:
