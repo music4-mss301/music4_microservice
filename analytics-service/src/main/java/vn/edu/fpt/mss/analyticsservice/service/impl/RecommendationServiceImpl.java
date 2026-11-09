@@ -61,7 +61,20 @@ public class RecommendationServiceImpl implements RecommendationService {
             List<Suggestion> suggestions = searchClient.recommend(new RecommendQuery(
                     new ArrayList<>(liked), new ArrayList<>(disliked), new ArrayList<>(exclude), limit));
             if (!suggestions.isEmpty()) {
-                return suggestions.stream().map(AnalyticsMapper::fromSuggestion).toList();
+                List<RecommendationResponse> result = new ArrayList<>(
+                        suggestions.stream().map(AnalyticsMapper::fromSuggestion).toList());
+                // Sau khi nghe, danh sách loại trừ dài ra nên gợi ý có thể thiếu: bù bằng trending cho đủ `limit`
+                if (result.size() < limit) {
+                    Set<Integer> taken = new LinkedHashSet<>(disliked);
+                    result.forEach(r -> taken.add(r.id()));
+                    for (RecommendationResponse extra : trending(limit, taken)) {
+                        if (result.size() >= limit) {
+                            break;
+                        }
+                        result.add(extra);
+                    }
+                }
+                return result;
             }
         }
         Set<Integer> exclude = new LinkedHashSet<>(disliked);
