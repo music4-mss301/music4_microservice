@@ -40,8 +40,8 @@ spring:
       client:
         config:
           default:
-            connect-timeout: 2000
-            read-timeout: 5000
+            connect-timeout: ${FEIGN_CONNECT_TIMEOUT:2000}
+            read-timeout: ${FEIGN_READ_TIMEOUT:5000}
           media-service:              # upload file lớn qua media-service
             read-timeout: 60000
   servlet:
