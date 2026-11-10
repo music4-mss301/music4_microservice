@@ -85,6 +85,10 @@ spring:
                     redis-rate-limiter.requestedTokens: 1
                     key-resolver: "#{@userOrIpKeyResolver}"
                 - RewritePath=/api/recommendations/sync, /api/admin/search/reindex
+                - name: CircuitBreaker
+                  args:
+                    name: search-admin-service
+                    fallbackUri: forward:/fallback/search-admin-service
             - id: user-service
               uri: ${USER_SERVICE_URI:lb://user-service}
               predicates:

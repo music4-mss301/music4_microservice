@@ -32,9 +32,8 @@ public class HistoryCompatService {
         SecurityUtils.requireOwnerOrAdmin(userId);
         int s = Math.min(Math.max(size, 1), 50);
         int p = Math.max(page, 0);
-        Page<History> history = historyRepository.findByUserIdOrderByListenedAtDesc(userId, PageRequest.of(p, s));
-        List<Integer> ids = history.getContent().stream().map(History::getTrackId)
-                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)).stream().toList();
+        Page<Integer> history = historyRepository.findDistinctTrackIdsByUser(userId, PageRequest.of(p, s));
+        List<Integer> ids = history.getContent();
         Map<Integer, TrackSummary> byId = new HashMap<>();
         if (!ids.isEmpty()) {
             contentClient.getTracks(ids).forEach(t -> byId.put(t.id(), t));

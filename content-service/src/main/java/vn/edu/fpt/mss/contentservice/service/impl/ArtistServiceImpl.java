@@ -60,6 +60,13 @@ public class ArtistServiceImpl implements ArtistService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<vn.edu.fpt.mss.contentservice.dto.event.ArtistEventPayload> exportForIndex(int page, int size) {
+        return PageResponse.of(artistRepository.findByIsDeletedFalse(PageRequest.of(page, Math.min(size, 200),
+                Sort.by("id"))), ContentMapper::toArtistEvent);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<ArtistResponse> search(String keyword, int page, int size) {
         String kw = StringUtils.hasText(keyword) ? keyword.trim() : null;
         return PageResponse.of(artistRepository.search(kw, PageRequest.of(page, Math.min(size, 100),

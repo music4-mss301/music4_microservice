@@ -24,6 +24,7 @@ app:
       - /api/ratings/average/**
       - /api/comments/track/**
       - /api/favorites/track/**
+      - /api/artists/*/followers
       - /api/follows/artist/**
       - /api/follows/user/**
       - /api/playlists/user/**

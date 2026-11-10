@@ -50,7 +50,11 @@ public class TrackingServiceImpl implements TrackingService {
     @Transactional
     public PlayResponse recordPlay(Integer trackId) {
         Integer userId = SecurityUtils.currentUserIdOrNull();
-        if (userId != null && historyRepository.existsByUserIdAndTrackIdAndListenedAtAfter(
+        if (userId == null) {
+            // Rule 4.2: chỉ ghi history cho user đã đăng nhập (khách không qua được bước chống spam theo user).
+            return new PlayResponse(trackId, false, "Cần đăng nhập để ghi nhận lượt nghe");
+        }
+        if (historyRepository.existsByUserIdAndTrackIdAndListenedAtAfter(
                 userId, trackId, LocalDateTime.now().minusSeconds(dedupeSeconds))) {
             return new PlayResponse(trackId, false, "Lượt nghe trùng trong " + dedupeSeconds + " giây, bỏ qua");
         }
@@ -66,6 +70,7 @@ public class TrackingServiceImpl implements TrackingService {
     @Transactional
     public void syncPosition(SyncTimeRequest req) {
         Integer userId = SecurityUtils.requireUser().id();
+        validatePositionWithinDuration(req);
         History history = historyRepository.findTopByUserIdAndTrackIdOrderByListenedAtDesc(userId, req.trackId())
                 .orElseGet(() -> historyRepository.save(History.builder()
                         .userId(userId)
@@ -73,6 +78,19 @@ public class TrackingServiceImpl implements TrackingService {
                         .playbackPosition(req.position())
                         .build()));
         history.setPlaybackPosition(req.position());
+    }
+
+    /** Rule 4.2: vị trí nghe không được vượt thời lượng bài. Content-service lỗi/không tìm thấy thì bỏ qua kiểm tra. */
+    private void validatePositionWithinDuration(SyncTimeRequest req) {
+        contentClient.getTracks(java.util.List.of(req.trackId())).stream()
+                .filter(t -> req.trackId().equals(t.id()) && t.duration() != null)
+                .findFirst()
+                .ifPresent(t -> {
+                    if (req.position() > t.duration()) {
+                        throw new BadRequestException("Vị trí nghe (" + req.position()
+                                + "s) vượt quá thời lượng bài hát (" + t.duration() + "s)");
+                    }
+                });
     }
 
     @Override

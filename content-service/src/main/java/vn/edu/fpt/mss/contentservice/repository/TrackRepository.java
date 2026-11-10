@@ -25,6 +25,10 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
 
     int countByAlbumId(Integer albumId);
 
+    boolean existsByFilePath(String filePath);
+
+    boolean existsByFilePathAndIdNot(String filePath, Integer id);
+
     boolean existsByAlbumIdAndNameIgnoreCase(Integer albumId, String name);
 
     boolean existsByAlbumIdAndNameIgnoreCaseAndIdNot(Integer albumId, String name, Integer id);
@@ -35,6 +39,10 @@ public interface TrackRepository extends JpaRepository<Track, Integer> {
 
     @Query("SELECT DISTINCT t.id FROM Track t JOIN t.trackArtists ta WHERE ta.artist.id = :artistId")
     List<Integer> findIdsByArtistId(@Param("artistId") Integer artistId);
+
+    /** Cặp [artistId, trackId] của nhiều nghệ sĩ trong MỘT câu SQL (tránh N+1 ở top-3). */
+    @Query("SELECT DISTINCT ta.artist.id, ta.track.id FROM TrackArtist ta WHERE ta.artist.id IN :artistIds")
+    List<Object[]> findArtistTrackPairs(@Param("artistIds") Collection<Integer> artistIds);
 
     @EntityGraph(attributePaths = "album")
     @Query("SELECT t FROM Track t JOIN t.trackCategories tc WHERE tc.category.id = :categoryId ORDER BY t.id DESC")

@@ -3,6 +3,8 @@ package vn.edu.fpt.mss.searchadminservice.client;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import vn.edu.fpt.mss.searchadminservice.dto.client.AlbumDoc;
+import vn.edu.fpt.mss.searchadminservice.dto.client.ArtistDoc;
 import vn.edu.fpt.mss.searchadminservice.dto.client.PageResult;
 import vn.edu.fpt.mss.searchadminservice.dto.client.StatsDtos;
 import vn.edu.fpt.mss.searchadminservice.dto.client.TrackDoc;
@@ -14,6 +16,12 @@ public interface ContentClient {
 
     @GetMapping("/internal/tracks/export")
     PageResult<TrackDoc> export(@RequestParam("page") int page, @RequestParam("size") int size);
+
+    @GetMapping("/internal/albums/export")
+    PageResult<AlbumDoc> exportAlbums(@RequestParam("page") int page, @RequestParam("size") int size);
+
+    @GetMapping("/internal/artists/export")
+    PageResult<ArtistDoc> exportArtists(@RequestParam("page") int page, @RequestParam("size") int size);
 
     /** Fallback khi ES chết: tìm bằng LIKE trên DB của content. */
     @GetMapping("/internal/tracks/search")

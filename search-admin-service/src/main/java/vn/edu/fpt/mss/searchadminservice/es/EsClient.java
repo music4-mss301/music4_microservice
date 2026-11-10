@@ -3,6 +3,7 @@ package vn.edu.fpt.mss.searchadminservice.es;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
@@ -22,7 +23,10 @@ public class EsClient {
     private final RestClient rest;
 
     public EsClient(SearchProperties props, RestClient.Builder builder) {
-        RestClient.Builder b = builder.baseUrl(props.esUrl())
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(2000);
+        factory.setReadTimeout(4000);
+        RestClient.Builder b = builder.baseUrl(props.esUrl()).requestFactory(factory)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE);
         if (StringUtils.hasText(props.esUsername())) {
             String token = Base64.getEncoder().encodeToString(

@@ -6,6 +6,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import vn.edu.fpt.mss.userservice.client.ContentClient;
+import vn.edu.fpt.mss.userservice.dto.client.ArtistProfileResponse;
+import vn.edu.fpt.mss.userservice.dto.client.CreateArtistProfileRequest;
 import vn.edu.fpt.mss.userservice.dto.request.UpdateProfileRequest;
 import vn.edu.fpt.mss.userservice.dto.response.PageResponse;
 import vn.edu.fpt.mss.userservice.dto.response.UserResponse;
@@ -34,6 +37,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final RefreshTokenService refreshTokenService;
     private final EventPublisher eventPublisher;
+    private final ContentClient contentClient;
 
     @Override
     @Transactional(readOnly = true)
@@ -87,7 +91,10 @@ public class UserServiceImpl implements UserService {
             guardNotLastAdmin();
         }
         if (newRole == Role.ARTIST && user.getArtistId() == null) {
-            throw new BusinessException("Tài khoản chưa có hồ sơ nghệ sĩ, hãy đăng ký tài khoản nghệ sĩ");
+            // Nâng LISTENER lên ARTIST: tự tạo hồ sơ nghệ sĩ ở content-service rồi gắn artistId.
+            ArtistProfileResponse profile = contentClient.createArtistProfile(
+                    new CreateArtistProfileRequest(user.getId(), user.getName(), user.getGender()));
+            user.setArtistId(profile.id());
         }
         user.setRole(newRole.name());
         refreshTokenService.revokeAllOf(user.getUserName());

@@ -28,5 +28,7 @@ public interface ArtistRepository extends JpaRepository<Artist, Integer> {
 
     long countByIsDeletedFalse();
 
+    Page<Artist> findByIsDeletedFalse(Pageable pageable);
+
     List<Artist> findByIdIn(java.util.Collection<Integer> ids);
 }
