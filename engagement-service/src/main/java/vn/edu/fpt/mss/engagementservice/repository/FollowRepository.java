@@ -18,6 +18,10 @@ public interface FollowRepository extends JpaRepository<Follow, Integer> {
 
     long countByArtistId(Integer artistId);
 
+    /** Đếm người theo dõi của nhiều nghệ sĩ trong MỘT câu SQL: [artistId, soLuong]. */
+    @Query("SELECT f.artistId, COUNT(f) FROM Follow f WHERE f.artistId IN :artistIds GROUP BY f.artistId")
+    List<Object[]> countFollowersByArtistIds(@Param("artistIds") Collection<Integer> artistIds);
+
     List<Follow> findByUserIdOrderByFollowedAtDesc(Integer userId);
 
     @Query("SELECT DISTINCT f.userId FROM Follow f WHERE f.artistId IN :artistIds")
