@@ -196,6 +196,7 @@ services:
 
   # ------------------------------------------------------------------ Spring Cloud
   config-server:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: config-server/Dockerfile
@@ -226,6 +227,7 @@ services:
     restart: unless-stopped
 
   eureka-server:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: eureka-server/Dockerfile
@@ -253,6 +255,7 @@ services:
   # ------------------------------------------------------------------ 6 service nghiệp vụ
 
   user-service:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: user-service/Dockerfile
@@ -280,6 +283,7 @@ services:
     restart: unless-stopped
 
   content-service:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: content-service/Dockerfile
@@ -306,6 +310,7 @@ services:
     restart: unless-stopped
 
   engagement-service:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: engagement-service/Dockerfile
@@ -332,6 +337,7 @@ services:
     restart: unless-stopped
 
   analytics-service:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: analytics-service/Dockerfile
@@ -358,6 +364,7 @@ services:
     restart: unless-stopped
 
   media-service:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: media-service/Dockerfile
@@ -384,6 +391,7 @@ services:
     restart: unless-stopped
 
   search-admin-service:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: search-admin-service/Dockerfile
@@ -447,6 +455,7 @@ services:
   # ------------------------------------------------------------------ cổng vào duy nhất
 
   api-gateway:
+    user: "1001:1001"
     build:
       context: .
       dockerfile: api-gateway/Dockerfile

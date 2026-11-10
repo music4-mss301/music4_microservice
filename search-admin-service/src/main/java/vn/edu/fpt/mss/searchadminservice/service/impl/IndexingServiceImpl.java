@@ -1,8 +1,11 @@
 package vn.edu.fpt.mss.searchadminservice.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import vn.edu.fpt.mss.searchadminservice.client.AiClient;
@@ -35,6 +38,97 @@ public class IndexingServiceImpl implements IndexingService {
     private final ExecutorService reindexExecutor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean reindexing = new AtomicBoolean(false);
     private volatile ReindexStatus lastStatus = new ReindexStatus(false, null, null, 0, null);
+
+    @PreDestroy
+    void shutdown() {
+        reindexExecutor.shutdownNow();
+    }
+
+    private long countIndex(String index) {
+        JsonNode res = es.search(index, Map.of("size", 0));
+        return res.path("hits").path("total").path("value").asLong(0);
+    }
+
+    /** Khi khởi động: nếu index albums hoặc artists đang rỗng mà có tracks, tự động đồng bộ từ dữ liệu tracks đã có trong ES. */
+    @EventListener(ApplicationReadyEvent.class)
+    public void syncOnStartupIfNeeded() {
+        reindexExecutor.execute(() -> {
+            try {
+                long albumCount = countIndex(IndexNames.ALBUMS);
+                long artistCount = countIndex(IndexNames.ARTISTS);
+                long trackCount = countIndex(IndexNames.TRACKS);
+                if (trackCount > 0 && (albumCount == 0 || artistCount <= 1)) {
+                    log.info("Khởi động: phát hiện index albums/artists chưa đầy đủ (tracks={}, albums={}, artists={}), tự động tổng hợp từ music_tracks...",
+                            trackCount, albumCount, artistCount);
+                    rebuildAlbumsAndArtistsFromTracks();
+                } else if (trackCount == 0) {
+                    log.info("Khởi động: music_tracks đang rỗng, thử đồng bộ từ content-service...");
+                    if (reindexing.compareAndSet(false, true)) {
+                        lastStatus = new ReindexStatus(true, OffsetDateTime.now(), null, 0, null);
+                        runReindex();
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("Bỏ qua tự động đồng bộ ES lúc khởi động: {}", e.getMessage());
+            }
+        });
+    }
+
+    /** Tổng hợp albums và artists trực tiếp từ các document đang có trong music_tracks (không phụ thuộc mạng sang content-service). */
+    private void rebuildAlbumsAndArtistsFromTracks() {
+        indexInitializer.ensureIndices();
+        JsonNode res = es.search(IndexNames.TRACKS, Map.of("size", 1000, "_source", Map.of("excludes", List.of("vector"))));
+        Map<Integer, AlbumDoc> albumsMap = new LinkedHashMap<>();
+        Map<Integer, Integer> albumTrackCounts = new HashMap<>();
+        Map<Integer, ArtistDoc> artistsMap = new LinkedHashMap<>();
+        Map<Integer, Integer> artistTrackCounts = new HashMap<>();
+        Map<Integer, Set<Integer>> artistAlbums = new HashMap<>();
+
+        for (JsonNode hit : res.path("hits").path("hits")) {
+            JsonNode src = hit.path("_source");
+            String img = src.path("img").isNull() ? null : src.path("img").asText(null);
+            Integer albumId = src.path("albumId").isNumber() ? src.path("albumId").asInt() : null;
+            String albumName = src.path("albumName").isNull() ? null : src.path("albumName").asText(null);
+            JsonNode artistsNode = src.path("artists");
+
+            Integer mainArtistId = null;
+            String mainArtistName = null;
+            if (artistsNode.isArray() && !artistsNode.isEmpty()) {
+                JsonNode first = artistsNode.get(0);
+                mainArtistId = first.path("id").isNumber() ? first.path("id").asInt() : null;
+                mainArtistName = first.path("name").asText(null);
+            }
+
+            if (albumId != null && albumName != null && !albumName.isBlank()) {
+                albumTrackCounts.merge(albumId, 1, Integer::sum);
+                albumsMap.putIfAbsent(albumId, new AlbumDoc(albumId, albumName, img, null, 0, mainArtistId, mainArtistName));
+            }
+
+            if (artistsNode.isArray()) {
+                for (JsonNode a : artistsNode) {
+                    if (!a.path("id").isNumber()) continue;
+                    int aId = a.path("id").asInt();
+                    String aName = a.path("name").asText(null);
+                    artistTrackCounts.merge(aId, 1, Integer::sum);
+                    if (albumId != null) {
+                        artistAlbums.computeIfAbsent(aId, k -> new HashSet<>()).add(albumId);
+                    }
+                    artistsMap.putIfAbsent(aId, new ArtistDoc(aId, null, aName, img, 0, 0));
+                }
+            }
+        }
+
+        for (AlbumDoc al : albumsMap.values()) {
+            int count = albumTrackCounts.getOrDefault(al.albumId(), 0);
+            indexAlbum(new AlbumDoc(al.albumId(), al.name(), al.img(), al.uploadDate(), count, al.artistId(), al.artistName()));
+        }
+        for (ArtistDoc ar : artistsMap.values()) {
+            int tCount = artistTrackCounts.getOrDefault(ar.artistId(), 0);
+            int aCount = artistAlbums.getOrDefault(ar.artistId(), Set.of()).size();
+            indexArtist(new ArtistDoc(ar.artistId(), ar.userId(), ar.name(), ar.img(), tCount, aCount));
+        }
+        log.info("Đã tổng hợp và index {} albums, {} artists từ music_tracks", albumsMap.size(), artistsMap.size());
+    }
 
     @Override
     public void indexTrack(TrackDoc t) {
@@ -101,6 +195,12 @@ public class IndexingServiceImpl implements IndexingService {
         String error = null;
         try {
             indexInitializer.ensureIndices();
+            Map<Integer, AlbumDoc> albumsMap = new LinkedHashMap<>();
+            Map<Integer, Integer> albumTrackCounts = new HashMap<>();
+            Map<Integer, ArtistDoc> artistsMap = new LinkedHashMap<>();
+            Map<Integer, Integer> artistTrackCounts = new HashMap<>();
+            Map<Integer, Set<Integer>> artistAlbums = new HashMap<>();
+
             int page = 0;
             PageResult<TrackDoc> batch;
             do {
@@ -108,9 +208,38 @@ public class IndexingServiceImpl implements IndexingService {
                 for (TrackDoc t : batch.content()) {
                     indexTrack(t);
                     indexed++;
+
+                    TrackDoc.Ref mainArtist = (t.artists() != null && !t.artists().isEmpty()) ? t.artists().getFirst() : null;
+                    if (t.albumId() != null && t.albumName() != null) {
+                        albumTrackCounts.merge(t.albumId(), 1, Integer::sum);
+                        albumsMap.putIfAbsent(t.albumId(), new AlbumDoc(
+                                t.albumId(), t.albumName(), t.img(), t.uploadDate(), 0,
+                                mainArtist != null ? mainArtist.id() : null,
+                                mainArtist != null ? mainArtist.name() : null));
+                    }
+                    if (t.artists() != null) {
+                        for (TrackDoc.Ref a : t.artists()) {
+                            if (a.id() == null) continue;
+                            artistTrackCounts.merge(a.id(), 1, Integer::sum);
+                            if (t.albumId() != null) {
+                                artistAlbums.computeIfAbsent(a.id(), k -> new HashSet<>()).add(t.albumId());
+                            }
+                            artistsMap.putIfAbsent(a.id(), new ArtistDoc(a.id(), null, a.name(), t.img(), 0, 0));
+                        }
+                    }
                 }
             } while (!batch.last());
-            log.info("Reindex xong {} bài", indexed);
+
+            for (AlbumDoc al : albumsMap.values()) {
+                int count = albumTrackCounts.getOrDefault(al.albumId(), 0);
+                indexAlbum(new AlbumDoc(al.albumId(), al.name(), al.img(), al.uploadDate(), count, al.artistId(), al.artistName()));
+            }
+            for (ArtistDoc ar : artistsMap.values()) {
+                int tCount = artistTrackCounts.getOrDefault(ar.artistId(), 0);
+                int aCount = artistAlbums.getOrDefault(ar.artistId(), Set.of()).size();
+                indexArtist(new ArtistDoc(ar.artistId(), ar.userId(), ar.name(), ar.img(), tCount, aCount));
+            }
+            log.info("Reindex xong {} bài, {} album, {} nghệ sĩ", indexed, albumsMap.size(), artistsMap.size());
         } catch (Exception e) {
             error = e.getMessage();
             log.error("Reindex thất bại sau {} bài: {}", indexed, error);
