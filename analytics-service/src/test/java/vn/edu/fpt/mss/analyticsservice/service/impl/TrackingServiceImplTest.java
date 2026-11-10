@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
 import vn.edu.fpt.mss.analyticsservice.client.ContentClient;
+import vn.edu.fpt.mss.analyticsservice.dto.client.TrackSummary;
 import vn.edu.fpt.mss.analyticsservice.dto.request.SyncTimeRequest;
 import vn.edu.fpt.mss.analyticsservice.dto.response.PlayResponse;
 import vn.edu.fpt.mss.analyticsservice.entity.History;
@@ -98,14 +99,22 @@ class TrackingServiceImplTest {
     }
 
     @Test
-    void recordPlay_guest_skipsDuplicateCheckAndStoresNullUser() {
+    void recordPlay_guest_isNotRecorded() {
         PlayResponse res = service.recordPlay(10);
 
-        assertTrue(res.counted());
-        verify(historyRepository, never()).existsByUserIdAndTrackIdAndListenedAtAfter(any(), any(), any());
-        ArgumentCaptor<History> saved = ArgumentCaptor.forClass(History.class);
-        verify(historyRepository).save(saved.capture());
-        assertNull(saved.getValue().getUserId());
+        assertFalse(res.counted());
+        verify(historyRepository, never()).save(any(History.class));
+        verify(eventPublisher, never()).publish(any(), any());
+    }
+
+    @Test
+    void syncPosition_positionBeyondDuration_isRejected() {
+        login(2, "LISTENER");
+        when(contentClient.getTracks(List.of(10))).thenReturn(List.of(
+                new TrackSummary(10, "Intro", null, 100, null, null, 0, null, null, null, List.of())));
+
+        assertThrows(BadRequestException.class, () -> service.syncPosition(new SyncTimeRequest(10, 101)));
+        verify(historyRepository, never()).save(any(History.class));
     }
 
     // ---------------------------------------------------------------- Rule: dọn lịch sử
