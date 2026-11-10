@@ -58,8 +58,13 @@ public class FrontendCompatService {
         if (artists.isEmpty()) {
             return List.of();
         }
+        Map<Integer, List<Integer>> trackIdsByArtist = trackRepository
+                .findArtistTrackPairs(artists.stream().map(Artist::getId).toList()).stream()
+                .collect(Collectors.groupingBy(r -> (Integer) r[0],
+                        Collectors.mapping(r -> (Integer) r[1], Collectors.toList())));
         List<ArtistEngagementQuery> queries = artists.stream()
-                .map(a -> new ArtistEngagementQuery(a.getId(), trackRepository.findIdsByArtistId(a.getId()))).toList();
+                .map(a -> new ArtistEngagementQuery(a.getId(), trackIdsByArtist.getOrDefault(a.getId(), List.of())))
+                .toList();
         Map<Integer, ArtistEngagementResult> stats = engagementClient.artistEngagement(queries).stream()
                 .collect(Collectors.toMap(ArtistEngagementResult::artistId, Function.identity(), (a, b) -> a));
         return artists.stream()

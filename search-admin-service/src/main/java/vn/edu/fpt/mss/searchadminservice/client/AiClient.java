@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.client.circuitbreaker.CircuitBreakerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 import vn.edu.fpt.mss.searchadminservice.config.SearchProperties;
 
@@ -27,7 +28,11 @@ public class AiClient {
     public AiClient(SearchProperties props, RestClient.Builder builder, CircuitBreakerFactory<?, ?> cbFactory) {
         this.props = props;
         this.cbFactory = cbFactory;
-        this.rest = StringUtils.hasText(props.aiUrl()) ? builder.baseUrl(props.aiUrl()).build() : null;
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(2000);
+        factory.setReadTimeout(5000);
+        this.rest = StringUtils.hasText(props.aiUrl())
+                ? builder.baseUrl(props.aiUrl()).requestFactory(factory).build() : null;
     }
 
     public List<Float> embed(String text) {

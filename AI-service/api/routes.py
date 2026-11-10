@@ -1,3 +1,4 @@
+import secrets
 from fastapi import APIRouter, Security, HTTPException, status
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
@@ -10,7 +11,7 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=True)
 
 # Hàm kiểm tra key
 def verify_api_key(api_key: str = Security(api_key_header)):
-    if api_key != settings.API_KEY:
+    if not secrets.compare_digest(api_key.encode("utf-8"), str(settings.API_KEY).encode("utf-8")):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Sai API Key! Server từ chối tính toán.",
