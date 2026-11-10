@@ -1,6 +1,7 @@
 package vn.edu.fpt.mss.searchadminservice.mapper;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import vn.edu.fpt.mss.searchadminservice.dto.client.TrackDoc;
 import vn.edu.fpt.mss.searchadminservice.dto.client.TrackSummary;
 import vn.edu.fpt.mss.searchadminservice.dto.response.*;
 
@@ -15,11 +16,13 @@ public final class SearchMapper {
 
     public static TrackHit toTrackHit(JsonNode hit, boolean pinned) {
         JsonNode s = hit.path("_source");
-        List<String> artists = new ArrayList<>();
-        s.path("artistNames").forEach(a -> artists.add(a.asText()));
+        List<String> artistNames = new ArrayList<>();
+        s.path("artistNames").forEach(a -> artistNames.add(a.asText()));
+        List<TrackDoc.Ref> artists = new ArrayList<>();
+        s.path("artists").forEach(a -> artists.add(new TrackDoc.Ref(intOrNull(a, "id"), a.path("name").asText(null))));
         return new TrackHit(intOrNull(s, "trackId"), s.path("name").asText(null), s.path("img").asText(null),
                 intOrNull(s, "duration"), s.path("previewPath").asText(null), s.path("viewCount").asLong(0),
-                intOrNull(s, "albumId"), s.path("albumName").asText(null), artists, pinned,
+                intOrNull(s, "albumId"), s.path("albumName").asText(null), artistNames, artists, pinned,
                 hit.hasNonNull("_score") ? hit.get("_score").asDouble() : null);
     }
 
@@ -44,7 +47,7 @@ public final class SearchMapper {
 
     public static TrackHit fromDb(TrackSummary t) {
         return new TrackHit(t.id(), t.name(), t.img(), t.duration(), t.previewPath(), t.viewCount(), t.albumId(),
-                t.albumName(), List.of(), false, null);
+                t.albumName(), List.of(), List.of(), false, null);
     }
 
     private static Integer intOrNull(JsonNode node, String field) {

@@ -25,7 +25,18 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SearchServiceImpl implements SearchService {
 
-    private static final Set<String> TYPES = Set.of("all", "tracks", "albums", "artists");
+    private static final Map<String, String> TYPE_ALIASES = Map.of(
+            "all", "all",
+            "tracks", "tracks",
+            "track", "tracks",
+            "albums", "albums",
+            "album", "albums",
+            "artists", "artists",
+            "artist", "artists",
+            "category", "tracks",
+            "categories", "tracks",
+            "playlist", "all"
+    );
 
     private final EsClient es;
     private final ContentClient contentClient;
@@ -38,8 +49,9 @@ public class SearchServiceImpl implements SearchService {
         if (!StringUtils.hasText(q) || q.trim().length() > 100) {
             throw new BadRequestException("Từ khóa phải từ 1 đến 100 ký tự");
         }
-        String t = type == null ? "all" : type.toLowerCase();
-        if (!TYPES.contains(t)) {
+        String rawType = type == null ? "all" : type.trim().toLowerCase();
+        String t = TYPE_ALIASES.get(rawType);
+        if (t == null) {
             throw new BadRequestException("type chỉ nhận all | tracks | albums | artists");
         }
         String query = q.trim();
@@ -178,9 +190,20 @@ public class SearchServiceImpl implements SearchService {
     }
 
     private Map<String, Object> body(String q, int page, int size, List<String> fields) {
+        String wildcard = "*" + escapeQueryString(q) + "*";
+        List<Map<String, Object>> should = List.of(
+                Map.of("multi_match", Map.of("query", q, "fields", fields, "fuzziness", "AUTO", "boost", 3.0)),
+                Map.of("multi_match", Map.of("query", q, "fields", fields, "type", "phrase_prefix", "boost", 2.0)),
+                Map.of("query_string", Map.of("query", wildcard, "fields", fields,
+                        "analyze_wildcard", true, "default_operator", "AND"))
+        );
         return Map.of("from", page * size, "size", size,
                 "_source", Map.of("excludes", List.of("vector")),
-                "query", Map.of("multi_match", Map.of("query", q, "fields", fields, "fuzziness", "AUTO")));
+                "query", Map.of("bool", Map.of("should", should, "minimum_should_match", 1)));
+    }
+
+    private static String escapeQueryString(String q) {
+        return q.replaceAll("([+\\-=&|><!(){}\\[\\]^\"~*?:\\\\/])", "\\\\$1");
     }
 
     private long total(JsonNode res) {
