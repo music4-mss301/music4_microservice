@@ -23,6 +23,24 @@ public final class AdminClientsFallbacks {
     private AdminClientsFallbacks() {
     }
 
+    /** Mô tả nguyên nhân gốc (kèm mã HTTP nếu có) để ghi log và đưa vào thông báo 503. */
+    static String describe(Throwable cause) {
+        if (cause instanceof FeignException fe) {
+            return "HTTP " + fe.status() + " " + fe.getClass().getSimpleName() + ": " + fe.getMessage();
+        }
+        Throwable root = cause;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        return root.getClass().getSimpleName() + ": " + root.getMessage();
+    }
+
+    private static <T> T failExport(String what, int page, Throwable cause) {
+        String reason = describe(cause);
+        log.error("Lấy {} (trang {}) từ content-service thất bại: {}", what, page, reason);
+        throw new ServiceUnavailableException("content-service không phản hồi (" + reason + "), chưa reindex được");
+    }
+
     @Component
     public static class Content implements FallbackFactory<ContentClient> {
         @Override
@@ -30,17 +48,17 @@ public final class AdminClientsFallbacks {
             return new ContentClient() {
                 @Override
                 public PageResult<TrackDoc> export(int page, int size) {
-                    throw new ServiceUnavailableException("content-service không phản hồi, chưa reindex được");
+                    return failExport("bài hát", page, cause);
                 }
 
                 @Override
                 public PageResult<AlbumDoc> exportAlbums(int page, int size) {
-                    throw new ServiceUnavailableException("content-service không phản hồi, chưa reindex được");
+                    return failExport("album", page, cause);
                 }
 
                 @Override
                 public PageResult<ArtistDoc> exportArtists(int page, int size) {
-                    throw new ServiceUnavailableException("content-service không phản hồi, chưa reindex được");
+                    return failExport("nghệ sĩ", page, cause);
                 }
 
                 @Override
