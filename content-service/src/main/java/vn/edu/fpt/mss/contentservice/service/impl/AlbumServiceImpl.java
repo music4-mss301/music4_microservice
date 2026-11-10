@@ -105,6 +105,8 @@ public class AlbumServiceImpl implements AlbumService {
         if (!StringUtils.hasText(key)) {
             throw new BadRequestException("Vui lòng tải lên ảnh bìa cho album");
         }
+
+        System.out.println("MSS301");
         return create(new AlbumRequest(trimmedTitle, key, artistId));
     }
 
