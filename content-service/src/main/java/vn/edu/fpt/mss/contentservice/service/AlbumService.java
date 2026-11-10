@@ -11,6 +11,9 @@ import java.util.List;
 public interface AlbumService {
     PageResponse<AlbumResponse> getAll(int page, int size);
 
+    /** Xuất album cho search-admin reindex (internal). */
+    PageResponse<vn.edu.fpt.mss.contentservice.dto.event.AlbumEventPayload> exportForIndex(int page, int size);
+
     AlbumDetailResponse getDetail(Integer id);
 
     List<AlbumResponse> getByArtist(Integer artistId);

@@ -21,6 +21,7 @@ x-java-env: &java-env
   LOGSTASH_HOST: logstash
   LOGSTASH_PORT: "5000"
   MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: http://zipkin:9411/api/v2/spans
+  ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
 
 x-svc-depends: &svc-depends
   config-server:

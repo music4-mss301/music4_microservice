@@ -188,8 +188,18 @@ public class TrackServiceImpl implements TrackService {
         if (!StringUtils.hasText(req.coverImageKey())) {
             throw new BadRequestException("Album phải có ảnh bìa");
         }
-        Artist currentMain = resolveMainArtist(null);
-        Album album = resolveAlbum(req.albumId(), currentMain);
+        boolean admin = SecurityUtils.isAdmin();
+        Artist currentMain;
+        Album album;
+        if (admin) {
+            // ADMIN không có hồ sơ nghệ sĩ: nghệ sĩ chính lấy theo album, hoặc theo artistId của từng bài.
+            album = req.albumId() == null ? null : albumRepository.findById(req.albumId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy album id=" + req.albumId()));
+            currentMain = album == null ? null : album.getArtist();
+        } else {
+            currentMain = resolveMainArtist(null);
+            album = resolveAlbum(req.albumId(), currentMain);
+        }
         Set<String> namesInRequest = new HashSet<>();
         List<Track> saved = new ArrayList<>();
         for (TrackBulkItem item : req.tracks()) {
@@ -205,8 +215,17 @@ public class TrackServiceImpl implements TrackService {
             if (item.categoryIds() == null || item.categoryIds().isEmpty()) {
                 throw new BadRequestException("Bài hát '" + item.title() + "' phải thuộc ít nhất 1 thể loại");
             }
-            Artist main = SecurityUtils.isAdmin() && item.artistId() != null
+            Artist main = admin && item.artistId() != null
                     ? artistService.findActive(item.artistId()) : currentMain;
+            if (main == null) {
+                throw new BadRequestException("ADMIN phải chỉ định artistId cho bài '" + item.title() + "' hoặc chọn album có sẵn");
+            }
+            if (album != null && !ArtistServiceImpl.sameArtist(album.getArtist(), main)) {
+                throw new BusinessException("Album không thuộc nghệ sĩ chính của bài hát");
+            }
+            if (trackRepository.existsByFilePath(item.audioFileKey())) {
+                throw new BusinessException("File âm thanh của bài '" + item.title() + "' đã được bài hát khác sử dụng");
+            }
             if (!namesInRequest.add(item.title().trim().toLowerCase())) {
                 throw new BusinessException("Tên bài '" + item.title() + "' bị trùng trong danh sách gửi lên");
             }
@@ -273,6 +292,12 @@ public class TrackServiceImpl implements TrackService {
         Track track = find(id);
         requireOwner(track);
         TrackEventPayload payload = ContentMapper.toTrackEvent(track);
+        if (track.getFilePath() != null && trackRepository.existsByFilePathAndIdNot(track.getFilePath(), id)) {
+            // File S3 còn bài khác dùng chung: không gửi key đi để media-service không xóa nhầm.
+            payload = new TrackEventPayload(payload.trackId(), payload.name(), payload.img(), payload.duration(),
+                    null, null, payload.uploadDate(), payload.viewCount(), payload.albumId(), payload.albumName(),
+                    payload.artists(), payload.categories());
+        }
         List<Artist> artists = currentArtists(track);
         Album album = track.getAlbum();
         trackRepository.delete(track);

@@ -249,6 +249,11 @@ public class IndexingServiceImpl implements IndexingService {
         }
     }
 
+    @PreDestroy
+    void shutdownExecutor() {
+        reindexExecutor.shutdown();
+    }
+
     @Override
     public ReindexStatus status() {
         return lastStatus;

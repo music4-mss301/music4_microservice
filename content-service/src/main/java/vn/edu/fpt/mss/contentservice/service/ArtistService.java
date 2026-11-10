@@ -15,6 +15,9 @@ public interface ArtistService {
 
     PageResponse<ArtistResponse> search(String keyword, int page, int size);
 
+    /** Xuất nghệ sĩ cho search-admin reindex (internal). */
+    PageResponse<vn.edu.fpt.mss.contentservice.dto.event.ArtistEventPayload> exportForIndex(int page, int size);
+
     ArtistDetailResponse getDetail(Integer id);
 
     ArtistResponse getMine();

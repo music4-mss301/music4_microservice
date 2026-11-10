@@ -41,6 +41,13 @@ public class AlbumServiceImpl implements AlbumService {
 
     @Override
     @Transactional(readOnly = true)
+    public PageResponse<vn.edu.fpt.mss.contentservice.dto.event.AlbumEventPayload> exportForIndex(int page, int size) {
+        return PageResponse.of(albumRepository.findAllBy(PageRequest.of(page, Math.min(size, 200), Sort.by("id"))),
+                ContentMapper::toAlbumEvent);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PageResponse<AlbumResponse> getAll(int page, int size) {
         return PageResponse.of(albumRepository.findAllBy(PageRequest.of(page, Math.min(size, 100),
                 Sort.by("uploadDate").descending())), ContentMapper::toAlbumResponse);

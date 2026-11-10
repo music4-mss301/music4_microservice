@@ -20,6 +20,10 @@ public interface FavoriteRepository extends JpaRepository<Favorite, Integer> {
 
     long countByTrackIdIn(Collection<Integer> trackIds);
 
+    /** Đếm lượt thích của nhiều bài trong MỘT câu SQL: [trackId, soLuong]. */
+    @Query("SELECT f.trackId, COUNT(f) FROM Favorite f WHERE f.trackId IN :trackIds GROUP BY f.trackId")
+    List<Object[]> countByTrackIds(@Param("trackIds") Collection<Integer> trackIds);
+
     @Modifying
     @Query("DELETE FROM Favorite x WHERE x.trackId = :trackId")
     int deleteByTrackId(@Param("trackId") Integer trackId);

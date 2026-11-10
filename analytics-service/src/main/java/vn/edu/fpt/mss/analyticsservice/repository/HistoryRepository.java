@@ -26,6 +26,11 @@ public interface HistoryRepository extends JpaRepository<History, Integer> {
     @Query("SELECT h.trackId FROM History h WHERE h.userId = :userId GROUP BY h.trackId ORDER BY MAX(h.listenedAt) DESC")
     List<Integer> findRecentTrackIds(@Param("userId") Integer userId, Pageable pageable);
 
+    /** Phân trang lịch sử theo bài (mỗi bài một dòng, bài nghe gần nhất lên trước) ngay dưới DB. */
+    @Query(value = "SELECT h.trackId FROM History h WHERE h.userId = :userId GROUP BY h.trackId ORDER BY MAX(h.listenedAt) DESC",
+            countQuery = "SELECT COUNT(DISTINCT h.trackId) FROM History h WHERE h.userId = :userId")
+    Page<Integer> findDistinctTrackIdsByUser(@Param("userId") Integer userId, Pageable pageable);
+
     long countByListenedAtAfter(LocalDateTime after);
 
     @Query("SELECT COUNT(h) FROM History h WHERE h.trackId IN :trackIds AND h.listenedAt >= :from")
