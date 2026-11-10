@@ -4,6 +4,8 @@ import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.openfeign.FallbackFactory;
 import org.springframework.stereotype.Component;
+import vn.edu.fpt.mss.searchadminservice.dto.client.AlbumDoc;
+import vn.edu.fpt.mss.searchadminservice.dto.client.ArtistDoc;
 import vn.edu.fpt.mss.searchadminservice.dto.client.PageResult;
 import vn.edu.fpt.mss.searchadminservice.dto.client.StatsDtos;
 import vn.edu.fpt.mss.searchadminservice.dto.client.TrackDoc;
@@ -28,6 +30,16 @@ public final class AdminClientsFallbacks {
             return new ContentClient() {
                 @Override
                 public PageResult<TrackDoc> export(int page, int size) {
+                    throw new ServiceUnavailableException("content-service không phản hồi, chưa reindex được");
+                }
+
+                @Override
+                public PageResult<AlbumDoc> exportAlbums(int page, int size) {
+                    throw new ServiceUnavailableException("content-service không phản hồi, chưa reindex được");
+                }
+
+                @Override
+                public PageResult<ArtistDoc> exportArtists(int page, int size) {
                     throw new ServiceUnavailableException("content-service không phản hồi, chưa reindex được");
                 }
 

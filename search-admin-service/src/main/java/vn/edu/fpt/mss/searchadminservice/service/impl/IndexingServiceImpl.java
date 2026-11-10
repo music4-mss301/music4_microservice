@@ -1,6 +1,7 @@
 package vn.edu.fpt.mss.searchadminservice.service.impl;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -110,7 +111,19 @@ public class IndexingServiceImpl implements IndexingService {
                     indexed++;
                 }
             } while (!batch.last());
-            log.info("Reindex xong {} bài", indexed);
+            int albumPage = 0;
+            PageResult<AlbumDoc> albums;
+            do {
+                albums = contentClient.exportAlbums(albumPage++, 100);
+                albums.content().forEach(this::indexAlbum);
+            } while (!albums.last());
+            int artistPage = 0;
+            PageResult<ArtistDoc> artists;
+            do {
+                artists = contentClient.exportArtists(artistPage++, 100);
+                artists.content().forEach(this::indexArtist);
+            } while (!artists.last());
+            log.info("Reindex xong {} bài (kèm album và nghệ sĩ)", indexed);
         } catch (Exception e) {
             error = e.getMessage();
             log.error("Reindex thất bại sau {} bài: {}", indexed, error);
@@ -118,6 +131,11 @@ public class IndexingServiceImpl implements IndexingService {
             lastStatus = new ReindexStatus(false, lastStatus.lastStartedAt(), OffsetDateTime.now(), indexed, error);
             reindexing.set(false);
         }
+    }
+
+    @PreDestroy
+    void shutdownExecutor() {
+        reindexExecutor.shutdown();
     }
 
     @Override

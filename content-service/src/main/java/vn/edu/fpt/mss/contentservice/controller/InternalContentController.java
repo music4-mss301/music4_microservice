@@ -8,6 +8,7 @@ import vn.edu.fpt.mss.contentservice.dto.event.TrackEventPayload;
 import vn.edu.fpt.mss.contentservice.dto.request.CreateArtistProfileRequest;
 import vn.edu.fpt.mss.contentservice.dto.response.*;
 import vn.edu.fpt.mss.contentservice.mapper.ContentMapper;
+import vn.edu.fpt.mss.contentservice.service.AlbumService;
 import vn.edu.fpt.mss.contentservice.service.ArtistService;
 import vn.edu.fpt.mss.contentservice.service.TrackService;
 
@@ -22,6 +23,7 @@ public class InternalContentController {
 
     private final TrackService trackService;
     private final ArtistService artistService;
+    private final AlbumService albumService;
 
     @GetMapping("/tracks")
     public List<TrackResponse> byIds(@RequestParam List<Integer> ids) {
@@ -32,6 +34,18 @@ public class InternalContentController {
     public PageResponse<TrackEventPayload> export(@RequestParam(defaultValue = "0") int page,
                                                   @RequestParam(defaultValue = "100") int size) {
         return trackService.exportForIndex(page, size);
+    }
+
+    @GetMapping("/albums/export")
+    public PageResponse<vn.edu.fpt.mss.contentservice.dto.event.AlbumEventPayload> exportAlbums(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "100") int size) {
+        return albumService.exportForIndex(page, size);
+    }
+
+    @GetMapping("/artists/export")
+    public PageResponse<vn.edu.fpt.mss.contentservice.dto.event.ArtistEventPayload> exportArtists(
+            @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "100") int size) {
+        return artistService.exportForIndex(page, size);
     }
 
     @GetMapping("/tracks/search")
